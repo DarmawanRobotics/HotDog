@@ -41,14 +41,15 @@ scripts/setup.sh install service timesync
 sudoedit /etc/hotdog/hotdog.env
 ```
 
-| Variable            |                                                                      |
-| ------------------- | -------------------------------------------------------------------- |
-| `ROBOT_IP`          | the M20 (`10.21.31.103`)                                             |
-| `DRIVER_PARAMS`     | this robot's m20_driver file, `/etc/hotdog/m20_driver.yaml` (step 3) |
-| `PARAMS_FILE`       | this robot and site, `/etc/hotdog/site.yaml` (steps 5 - 8)           |
-| `SITE`              | the site whose routes and inspection points are used                 |
-| `POD_IP`            | the UniPod MT11                                                      |
-| `HERTZINO_PASSWORD` | the acoustic camera's password (never in a parameter file)           |
+| Variable             |                                                                      |
+| -------------------- | -------------------------------------------------------------------- |
+| `ROBOT_IP`           | the M20 (`10.21.31.103`)                                             |
+| `DRIVER_PARAMS`      | this robot's m20_driver file, `/etc/hotdog/m20_driver.yaml` (step 3) |
+| `PARAMS_FILE`        | this robot and site, `/etc/hotdog/site.yaml` (steps 5 - 9)           |
+| `SITE`               | the site whose routes and inspection points are used                 |
+| `POD_IP`             | the UniPod MT11                                                      |
+| `HERTZINO_PASSWORD`  | the acoustic camera's password (never in a parameter file)           |
+| `TELEGRAM_BOT_TOKEN` | the bot that sends the alerts (step 9)                               |
 
 The file is read by systemd and bash: no comments after a value, quotes around values with
 spaces. `scripts/setup.sh` checks every component.
@@ -112,7 +113,14 @@ The dock is the origin of everything HotDog teaches:
 4. Set the day's air temperature (`thermal.ambient_c`), then run the first patrol at a low
    cruise speed (`path_follower_node speed.cruise: 0.3` in the site file) and check the reports.
 
-## 9. Time
+## 9. Alerts
+
+[hotdog_alerts: Set up](../src/hotdog_alerts/README.md#set-up): the bot token in the env file,
+the crew's group in `alert_node` `telegram.chat_ids` of the site file, `robot_name`,
+`language: id` when the crew prefers it, and `report_url` as the crew's phones reach the
+robot. `ros2 service call /alerts/test std_srvs/srv/Trigger` must arrive in the group.
+
+## 10. Time
 
 Every stamp comes from one clock: `scripts/setup.sh install timesync` (chrony). The Airy are
 stamped on arrival here (`use_lidar_clock: false`), so they need no PTP. `health/status` warns

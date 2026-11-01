@@ -1,0 +1,22 @@
+# hotdog_alerts defaults: only what differs from the configuration dataclasses, plus notes.
+# Every parameter with its unit and range: `ros2 param describe /alert_node <name>`.
+# Secrets never go here: TELEGRAM_BOT_TOKEN and HOTDOG_WEBHOOK_TOKEN in /etc/hotdog/hotdog.env.
+alert_node:
+  ros__parameters:
+    enabled: true # live
+    language: en # en | id (Bahasa Indonesia)
+    robot_name: HotDog # e.g. "HotDog 01 - GI Cawang"
+    report_url: "" # e.g. http://10.21.31.50:8088/ : a link to the patrol page in every patrol alert
+    telegram:
+      chat_ids: [""] # e.g. ["-1001234567890"] (a group) and ["123456789"] (a person)
+      photos: true # the thermal image or the sound map with each finding
+    webhook:
+      url: "" # e.g. https://scada.example/api/hotdog : one JSON POST per alert
+    findings:
+      min_severity: warning # attention | warning | critical
+      repeat_hours: 12.0 # the same finding again only after this, unless it got worse
+    patrol_done: true # every finished patrol (failed, stopped and returned ones always)
+    health_repeat_min: 30.0
+    retry_sec: 15.0 # the spool is sent every 15 s while the uplink is down
+    max_age_hours: 48.0 # older unsent alerts are dropped
+    max_queued: 500

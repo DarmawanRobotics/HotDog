@@ -34,6 +34,10 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
 - `hotdog_reports`: a page per patrol with every point, finding, the change since the last
   round of the same finding and the evidence images; day and front pages; retention by age
   and free space; the reports served read-only on port 8088 (`reports`, `REPORTS`).
+- `hotdog_alerts`: warning and critical findings with their thermal image or sound map, failed,
+  stopped, returned and finished patrols with the report link, health ERROR, to Telegram and a
+  JSON webhook; spooled on disk and retried while the uplink is down; English or Bahasa
+  Indonesia; `alerts/test` (`alerts`, `ALERTS`, `TELEGRAM_BOT_TOKEN`, `HOTDOG_WEBHOOK_TOKEN`).
 - `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
   (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
 - Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and

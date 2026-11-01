@@ -22,6 +22,7 @@ STUBBED = (
     'hotdog_inspection',
     'hotdog_patrol',
     'hotdog_reports',
+    'hotdog_alerts',
     'm20_bringup',
     'unipod_driver',
 )

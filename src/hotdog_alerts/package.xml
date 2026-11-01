@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hotdog_alerts</name>
+  <version>0.1.0</version>
+  <description>Alerts of HotDog to Telegram and a JSON webhook: findings at or above a severity with their evidence image, patrols that failed, stopped, returned or finished, health ERROR; spooled on disk and retried while the uplink is down; English or Bahasa Indonesia.</description>
+  <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>dharma_utils</exec_depend>
+  <exec_depend>dharma_interfaces</exec_depend>
+  <exec_depend>hotdog_base</exec_depend>
+  <exec_depend>hotdog_interfaces</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
