@@ -54,7 +54,7 @@ class ReturnPlanner:
         while True:
             result = self.node.tf.lookup(frames.map, frames.base)
             if result is not None:
-                return result.pose2d()
+                return result.pose2d
             if time.monotonic() > deadline:
                 return None
             time.sleep(0.1)
