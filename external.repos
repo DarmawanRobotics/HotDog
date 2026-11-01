@@ -15,4 +15,4 @@ repositories:
   external/rslidar_msg:
     type: git
     url: https://github.com/RoboSense-LiDAR/rslidar_msg.git
-    version: fe8a95cb242bd294cc3d5e3422f2093fb49a56ee # master 2025
+    version: fe8a95cb242bd294cc3d5e3422f2093fb49a56ee # master 2022-10-26
