@@ -30,9 +30,11 @@ def test_every_component_in_order():
         'dharma_control',
         'dharma_health',
         'hotdog_inspection',
+        'hotdog_patrol',
     ]
     assert 'dharma_health' not in by_package(stack.compose(options(health=False)))
     assert 'hotdog_inspection' not in by_package(stack.compose(options(inspection=False)))
+    assert 'hotdog_patrol' not in by_package(stack.compose(options(patrol=False)))
     assert 'hotdog_base' not in by_package(stack.compose(options(), sim=True))
 
 
@@ -77,6 +79,11 @@ def test_sites():
     assert (mapping['sites_dir'], mapping['site']) == ('/s', 'gi_cawang')
     assert includes['dharma_localization'].arguments['sites_dir'] == '/s'
     assert includes['hotdog_inspection'].arguments['sites_dir'] == '/s'
+    assert includes['hotdog_patrol'].arguments == {
+        **includes['hotdog_patrol'].arguments,
+        'robot_ns': 'm20',
+        'sites_dir': '/s',
+    }
     assert 'inspection_node' in stack.SITES_NODES
 
 

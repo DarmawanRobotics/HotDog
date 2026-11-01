@@ -43,6 +43,11 @@ ARGUMENTS = {
     'site': ('SITE', '', 'site to load; empty: from the files or the last one'),
     'sites_dir': ('SITES_DIR', '~/.hotdog/sites', 'sites: taught routes, inspection points'),
     'inspection': ('INSPECTION', 'true', 'inspection at the stop points (inspection_node)'),
+    'patrol': (
+        'PATROL',
+        'true',
+        'patrols from the dock, on demand or on a schedule (patrol_node)',
+    ),
     'pod': ('POD', 'true', 'unipod_driver for the UniPod MT11 (gimbal, cameras, temperatures)'),
     'pod_ip': ('POD_IP', '', 'the UniPod MT11; empty: unipod_driver default (10.21.31.26)'),
     'fiducials': (None, 'false', 'camera throttle + tag detector'),
@@ -104,6 +109,7 @@ def resolve(arg, sim: bool = False):
         camera_info=arg('camera_info').strip(),
         health=bringup.truthy(arg('health')),
         inspection=bringup.truthy(arg('inspection')),
+        patrol=bringup.truthy(arg('patrol')),
         pod=False if sim else bringup.truthy(arg('pod')),
     )
     data = bringup.merge_files(files)

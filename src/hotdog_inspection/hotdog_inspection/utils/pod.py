@@ -12,6 +12,7 @@ import os
 import threading
 import time
 
+from hotdog_base.utils.calls import call
 from sensor_msgs.msg import Image
 from unipod_msgs.msg import GimbalAttitude, GimbalStatus
 from unipod_msgs.srv import GetTemperature, Recenter, SetGimbalAngle, SetZoom, ThermalControl
@@ -21,7 +22,6 @@ from hotdog_inspection.core.config import PodConfig
 from hotdog_inspection.core.images import to_bgr, write_jpeg
 from hotdog_inspection.core.runner import Pod
 from hotdog_inspection.core.thermal import Reading
-from hotdog_inspection.utils.calls import call
 
 ZOOM_TOLERANCE = 0.05
 
