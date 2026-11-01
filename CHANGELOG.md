@@ -17,3 +17,6 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
   visible images, `inspection/add_target` to teach targets from the pod's view.
 - The bringup starts `unipod_driver` (`pod`, `pod_ip`) and `inspection_node` (`inspection`);
   `sites_dir` defaults to `~/.hotdog/sites` for every node.
+- Partial discharge at acoustic targets with the Hertzinno HZ-FA-371 over its HTTP API (its
+  driver is ROS 1): one detection measured after the robot stopped, corona / surface /
+  floating judged by configurable severities and intensity, sound map and PRPD photos kept.
