@@ -23,4 +23,9 @@ setup(
     maintainer_email='darmawandeveloper@gmail.com',
     description='HotDog bringup: M20 profile, driver settings, stack overrides, one launch.',
     license='Apache-2.0',
+    entry_points={
+        'console_scripts': [
+            'status = hotdog.status_cli:main',
+        ],
+    },
 )

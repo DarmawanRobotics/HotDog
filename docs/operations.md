@@ -1,28 +1,39 @@
 # Operations
 
 Day-to-day use of HotDog on a commissioned robot and site ([commissioning](commissioning.md)).
-Every command runs on the payload computer in a shell with the service's environment
-(`source ~/dev/HotDog/install/setup.bash` after `source /opt/ros/foxy/setup.bash`, with
-`ROS_LOCALHOST_ONLY=1` like the service).
+Log in to the payload computer (`ssh robot@<ip>`) and use the **`hotdog`** command
+(`hotdog help` lists everything; `scripts/setup.sh install cli` creates it). Each one is a
+plain ROS 2 call underneath ([scripts/hotdog.sh](../scripts/hotdog.sh)); in a shell with
+`source ~/dev/HotDog/scripts/env.sh` every topic and service of the stack is reachable too.
 
 ## Start of a shift
 
-1. The M20 sits on its dock, the payload computer is on: `sudo systemctl status hotdog`
-   (it starts at boot).
-2. `ros2 topic echo --once /health/status`: `level` OK (or WARN with a reason you accept).
-3. `ros2 topic echo --once /inspection/status`: `pod_connected` and `acoustic_connected` true.
-4. Set the air temperature of the day, the reference of the ambient criterion:
-   `ros2 param set /inspection_node thermal.ambient_c 33.0`.
-5. `ros2 topic echo --once /patrol/status`: `schedule_enabled` and `next_scheduled` as planned.
+1. The M20 sits on its dock, the payload computer is on (HotDog starts at boot).
+2. `hotdog status`:
+
+   ```
+   patrol      IDLE  points 0 (C0 W0 A0) next 14:00
+   health      OK  speed 100%
+   localize    LOCALIZED  (odometry) drift ±0.00 m
+   control     AUTO  e-stop off field CLEAR
+   battery     96%
+   inspection  IDLE  pod ok acoustic ok ambient 30.0 °C 12 points 30 targets
+   navigation  INACTIVE
+   alerts      nothing waiting
+   reports     http://10.21.31.50:8088/
+   ```
+
+   health OK (or WARN with a reason you accept), pod and acoustic ok, the schedule as planned.
+
+3. The air temperature of the day, the reference of the ambient criterion: `hotdog ambient 33`.
 
 ## Teach a route
 
 Routes are taught from the dock and repeated from it: the dock is the origin of the map frame.
 
 ```bash
-ros2 service call /localization/assume_origin std_srvs/srv/Trigger   # on the dock
-ros2 service call /m20/stand_up std_srvs/srv/Trigger
-ros2 service call /route/start std_srvs/srv/Trigger
+hotdog stand            # on the dock
+hotdog teach start      # the dock becomes the origin, recording starts
 ```
 
 Drive with the **M20 remote**: the control mux stays in AUTO with nothing to send, so the
@@ -30,18 +41,18 @@ driver is quiet and the remote's joystick has the robot (`/m20/state` `velocity:
 each piece of equipment:
 
 ```bash
-ros2 service call /route/mark_stop_point dharma_interfaces/srv/MarkStopPoint "{dwell_sec: 5.0}"
+hotdog teach point      # a stop point here (hotdog teach point 8: dwell 8 s)
 ```
 
 then teach its targets ([below](#teach-inspection-targets)) before driving on. End next to the
 dock's approach, then:
 
 ```bash
-ros2 service call /route/stop std_srvs/srv/Trigger     # <site>/routes/<YYYY-MM-DD_HH-MM-SS>.csv
-ros2 service call /m20/charge_start std_srvs/srv/Trigger
+hotdog teach stop       # <site>/routes/<YYYY-MM-DD_HH-MM-SS>.csv
+hotdog dock
 ```
 
-`ros2 topic echo --once /site/status` lists the site's routes. Drive slowly and smoothly while
+`hotdog routes` lists the site's routes. Drive slowly and smoothly while
 teaching: the follower repeats the path as driven.
 
 ## Teach inspection targets
@@ -51,15 +62,14 @@ Standing on the stop point, aim the pod at the equipment:
 ```bash
 ros2 service call /unipod/set_angle unipod_msgs/srv/SetGimbalAngle "{yaw: 35.0, pitch: -10.0}"
 ros2 service call /unipod/set_zoom unipod_msgs/srv/SetZoom "{zoom: 4.0}"
-ros2 service call /inspection/add_target hotdog_interfaces/srv/AddTarget \
-  "{name: bay1_ds_clamps, thermal: true, acoustic: true, strips: 3}"
+hotdog teach target bay1_ds_clamps strips=3 acoustic
 ```
 
-| Equipment                                    | Target                                              |
-| -------------------------------------------- | --------------------------------------------------- |
-| three phases side by side (clamps, bushings) | `thermal: true, strips: 3`: the phases are compared |
-| a single joint or termination                | `thermal: true` (`max_temp_c` for an own limit)     |
-| insulators, cable terminations, GIS spacers  | `acoustic: true`: partial discharge detection       |
+| Equipment                                    | Target                                                         |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| three phases side by side (clamps, bushings) | `hotdog teach target <name> strips=3`: the phases are compared |
+| a single joint or termination                | `hotdog teach target <name>` (`max=95` for an own limit)       |
+| insulators, cable terminations, GIS spacers  | `hotdog teach target <name> acoustic`: partial discharge       |
 
 Several targets per point are fine (each is a pan, tilt and zoom). Fine-tune them in
 `<sites_dir>/<site>/inspection.yaml` (regions in thermal pixels, limits, detection time); the
@@ -70,8 +80,8 @@ file is read at every inspection. Details: [hotdog_inspection](../src/hotdog_ins
 From the dock, on demand:
 
 ```bash
-ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 2026-11-01_09-30-00}"
-ros2 topic echo /patrol/status
+hotdog patrol 2026-11-01_09-30-00     # or just `hotdog patrol`: the route patrolled last
+hotdog status
 ```
 
 or on a schedule, kept in the site file (`/etc/hotdog/site.yaml`) to survive a restart:
@@ -86,10 +96,10 @@ patrol_node:
 ```
 
 A patrol checks health, battery and the e-stop, re-anchors at the dock, stands up, follows the
-route, inspects at each stop point and docks again. Pause and resume:
-`/navigation/pause`, `/navigation/resume`; stop: `/patrol/stop` (the robot stands where it is).
+route, inspects at each stop point and docks again. `hotdog pause` / `hotdog resume`;
+`hotdog stop` stops it where the robot stands. `hotdog schedule on | off | show`.
 
-**Back to the dock** at any time: `ros2 service call /patrol/return std_srvs/srv/Trigger`. The
+**Back to the dock** at any time: `hotdog return`. The
 robot walks the taught route backwards (no inspections) and docks. The watchdog does the same
 on its own below 20 % battery, after 2 h or when the robot is blocked for 3 min; off the route,
 lost or with a silent follower it stops instead and the patrol ends `FAILED`. An operator
@@ -130,9 +140,8 @@ the alerts wait on the robot and arrive when the link is back.
 ## Emergency stop
 
 - **Hard:** the M20's own e-stop or remote; the driver holds `cmd_vel` until `stand_up`.
-- **Latched in HotDog:** `ros2 service call /control/estop/engage std_srvs/srv/Trigger`. Only
-  zero velocity leaves the control mux until `/control/estop/release`; the patrol stays paused
-  until `/navigation/resume` or a new `/patrol/start`.
+- **Latched in HotDog:** `hotdog estop`. Only zero velocity leaves the control mux until
+  `hotdog release`; the patrol stays paused until `hotdog resume` or a new `hotdog patrol`.
 - The protective field (both Airy, 360°) stops the robot before any obstacle on every side.
 
 ## When something goes wrong
@@ -149,4 +158,5 @@ the alerts wait on the robot and arrive when the link is back.
 | `acoustic_connected: false`                       | `ping 192.168.2.204`, the password in `/etc/hotdog/hotdog.env`, the camera in partial discharge mode                                         |
 | the robot does not move in AUTO                   | `/control/status` (mode, e-stop, field), `/m20/state` `velocity` (`hold`: call `stand_up`; `takeover`: the app or remote took the robot)     |
 
-Logs: `journalctl -fu hotdog`; `scripts/setup.sh` checks every component.
+Logs: `hotdog logs`; `scripts/setup.sh` checks every component; `hotdog restart` restarts the
+service (ROS logs older than 7 days are deleted at each start).
