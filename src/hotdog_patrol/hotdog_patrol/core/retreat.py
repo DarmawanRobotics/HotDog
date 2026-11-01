@@ -2,10 +2,10 @@
 The way back to the dock: the taught route walked backwards from where the robot stands.
 
 Odometry only, nothing is mapped, so the only ground known to be clear is the taught route.
-The return starts at the earliest waypoint near the robot (a route out and back along the same
-walkway returns the short way), runs back towards the route's start (the dock, where every
-route is taught from) without stop points, and ends dock_clearance_m before it: the M20 docks
-itself from there (charge_start).
+The return starts at the nearest waypoint of the route's first pass near the robot (a route
+out and back along the same walkway returns the short way), runs back towards the route's
+start (the dock, where every route is taught from) without stop points, and ends
+dock_clearance_m before it: the M20 docks itself from there (charge_start).
 """
 
 from __future__ import annotations
@@ -20,12 +20,21 @@ STATE_FILE = 'state.json'  # <site>/patrol/state.json: the last route patrolled
 
 
 def start_index(points: list[RoutePoint], x: float, y: float, near_m: float) -> int:
-    """Return the earliest waypoint within near_m of (x, y), else the nearest one."""
+    """Return where the way back starts.
+
+    The nearest waypoint of the route's first pass within near_m of (x, y), so an out-and-back
+    route returns the short way; without one, the nearest waypoint.
+    """
     distances = [math.hypot(p.x - x, p.y - y) for p in points]
-    for i, d in enumerate(distances):
-        if d <= near_m:
-            return i
-    return min(range(len(points)), key=distances.__getitem__)
+    near = [i for i, d in enumerate(distances) if d <= near_m]
+    if not near:
+        return min(range(len(points)), key=distances.__getitem__)
+    run = [near[0]]
+    for i in near[1:]:
+        if i != run[-1] + 1:
+            break
+        run.append(i)
+    return min(run, key=distances.__getitem__)
 
 
 def first_beyond(points: list[RoutePoint], distance: float):

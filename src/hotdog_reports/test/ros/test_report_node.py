@@ -49,7 +49,7 @@ def test_missing_pages_are_rendered_after_start(rig):
     tmp_path, (first, second), *_ = rig
     for summary in (first, second):
         assert wait_for(lambda s=summary: os.path.isfile(s[:-5] + '.html'), 10.0)
-    assert (tmp_path / 'index.html').is_file()
+    assert wait_for((tmp_path / 'index.html').is_file, 10.0)  # after every day
 
 
 def test_a_finished_patrol_and_an_inspection_render_their_pages(rig):

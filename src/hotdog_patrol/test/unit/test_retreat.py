@@ -34,6 +34,13 @@ def test_the_earliest_near_waypoint_is_the_short_way():
     assert [p.x for p in way] == [3.0, 2.0, 1.0]  # not around the far end
 
 
+def test_the_nearest_point_of_the_first_pass_with_a_wide_near():
+    way = retreat.return_route(line(11), 6.0, 0.0, near_m=2.0, clearance_m=1.0)
+    assert way[0].x == 6.0  # not 4.0, the earliest one within 2 m
+    route = out_and_back()
+    assert retreat.return_route(route, 3.0, 0.1, near_m=2.0, clearance_m=1.0)[0].x == 3.0
+
+
 def test_far_from_the_route_starts_at_the_nearest_point():
     way = retreat.return_route(line(11), 8.0, 5.0, near_m=0.5, clearance_m=0.0)
     assert way[0].x == 8.0 and way[-1].x == 0.0
