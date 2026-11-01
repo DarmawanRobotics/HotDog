@@ -7,6 +7,11 @@ repositories:
     type: git
     url: https://github.com/DarmawanRobotics/m20_ros2.git
     version: 8b23d1502ebc3c39da379bc38c2f4dbe4198cf7c # main 2026-10-18
+  # UniPod MT11 pod: gimbal, zoom, both RTSP streams, temperatures (unipod_msgs)
+  drivers/unipod_driver:
+    type: git
+    url: https://github.com/DarmawanRobotics/unipod_driver.git
+    version: 13c05763a75dc1a0b134b460bfa12bffce4ddfee # main 2026-10-18
   # RoboSense Airy, front and rear (rs_driver is a submodule: --recursive)
   external/rslidar_sdk:
     type: git

@@ -22,6 +22,8 @@
   <exec_depend>dharma_sim</exec_depend>
   <exec_depend>hotdog_base</exec_depend>
   <exec_depend>m20_bringup</exec_depend>
+  <exec_depend>hotdog_inspection</exec_depend>
+  <exec_depend>unipod_driver</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 
