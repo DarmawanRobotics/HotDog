@@ -52,7 +52,7 @@ def rig(tmp_path, monkeypatch):
     executor.add_node(helper)
     spinner = Spinner(executor)
     assert wait_for(lambda: all(p.get_subscription_count() > 0 for p in pubs.values()), 10.0)
-    yield tmp_path, api, pubs, test, spinner
+    yield tmp_path, api, pubs, test, spinner, node
     spinner.stop()
     helper.destroy_node()
     node.destroy_node()
@@ -65,7 +65,7 @@ def kinds(api) -> list:
 
 
 def test_a_critical_finding_reaches_the_webhook(rig):
-    tmp_path, api, pubs, _, _ = rig
+    tmp_path, api, pubs, *_ = rig
     folder = tmp_path / '20261101' / '090200_bay1'
     folder.mkdir(parents=True)
     (folder / 'report.json').write_text(json.dumps(REPORT))
@@ -76,9 +76,10 @@ def test_a_critical_finding_reaches_the_webhook(rig):
 
 
 def test_patrols_after_start_and_health_errors(rig):
-    _, api, pubs, _, _ = rig
+    _, api, pubs, _, _, node = rig
     old = PatrolStatus(state=PatrolStatus.DONE, report='/r/20261031/patrol_090000.json')
     pubs['patrol'].publish(old)  # ended before the node started: not announced
+    assert wait_for(lambda: old.report in node.patrols, 10.0)  # latched: the next replaces it
     new = PatrolStatus(state=PatrolStatus.FAILED, report='/r/20261101/patrol_090000.json',
                        message='lost', site='gi')  # fmt: skip
     pubs['patrol'].publish(new)
@@ -90,7 +91,7 @@ def test_patrols_after_start_and_health_errors(rig):
 
 
 def test_the_test_alert(rig):
-    _, api, _, test, spinner = rig
+    _, api, _, test, spinner, _ = rig
     answer = spinner.call(test, Trigger.Request())
     assert answer.success, answer.message
     assert wait_for(lambda: 'test' in kinds(api), 10.0)
