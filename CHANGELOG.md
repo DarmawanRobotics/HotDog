@@ -23,6 +23,14 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
 - `hotdog_patrol`: `patrol/start` from the dock (checks, `localization/assume_origin`, stand-up,
   AUTO, route, follower), the patrol followed to the end of its route, a summary of the
   inspections on the way, back to the dock with `charge_start`, patrols at fixed local times.
+- Patrol watchdog: back to the dock below `abort.min_battery`, after `abort.max_duration_min`
+  or blocked for `abort.hold_timeout_sec`; stopped when off the route, lost or the follower is
+  silent; an operator pause, the e-stop or REMOTE is never overruled.
+- The way back to the dock: the taught route reversed from the earliest waypoint near the robot,
+  without stop points, to `abort.dock_clearance_m` before the dock, then `charge_start`;
+  `patrol/return` on request, `PatrolStatus.RETURNING`, `returned` and `battery`.
+- A patrol started without a route runs the route patrolled last on the site.
+- The patrol summary lists the report directories of its inspection points.
 - `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
   (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
 - Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and

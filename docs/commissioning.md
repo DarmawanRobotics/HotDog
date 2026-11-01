@@ -8,12 +8,12 @@ someone holding the M20 remote and the hard emergency stop.
 
 The payload computer reaches three devices on its wired interface:
 
-| Device             | Address (default)                        | Used by                                |
-| ------------------ | ---------------------------------------- | -------------------------------------- |
-| Lynx M20           | `10.21.31.103`, UDP 30000                 | `m20_driver` (`ROBOT_IP`)               |
-| RoboSense Airy × 2 | send to this computer, UDP 6699/7788 (front), 6698/7789 (rear) | `rslidar_sdk` |
-| UniPod MT11        | `10.21.31.26` (factory `192.168.144.25`), TCP 37260, RTSP 8554 | `unipod_driver` (`POD_IP`) |
-| Hertzinno HZ-FA-371 | `192.168.2.204` (factory), HTTP 80       | `inspection_node` (`acoustic.host`)     |
+| Device              | Address (default)                                              | Used by                             |
+| ------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| Lynx M20            | `10.21.31.103`, UDP 30000                                      | `m20_driver` (`ROBOT_IP`)           |
+| RoboSense Airy × 2  | send to this computer, UDP 6699/7788 (front), 6698/7789 (rear) | `rslidar_sdk`                       |
+| UniPod MT11         | `10.21.31.26` (factory `192.168.144.25`), TCP 37260, RTSP 8554 | `unipod_driver` (`POD_IP`)          |
+| Hertzinno HZ-FA-371 | `192.168.2.204` (factory), HTTP 80                             | `inspection_node` (`acoustic.host`) |
 
 Give the interface an address in each subnet the devices use, e.g. with netplan
 (`/etc/netplan/60-hotdog.yaml`, then `sudo netplan apply`):
@@ -37,14 +37,14 @@ scripts/setup.sh install service timesync
 sudoedit /etc/hotdog/hotdog.env
 ```
 
-| Variable            |                                                                          |
-| ------------------- | ------------------------------------------------------------------------ |
-| `ROBOT_IP`          | the M20 (`10.21.31.103`)                                                 |
-| `DRIVER_PARAMS`     | this robot's m20_driver file, `/etc/hotdog/m20_driver.yaml` (step 3)      |
-| `PARAMS_FILE`       | this robot and site, `/etc/hotdog/site.yaml` (steps 5 - 8)                 |
-| `SITE`              | the site whose routes and inspection points are used                     |
-| `POD_IP`            | the UniPod MT11                                                          |
-| `HERTZINO_PASSWORD` | the acoustic camera's password (never in a parameter file)               |
+| Variable            |                                                                      |
+| ------------------- | -------------------------------------------------------------------- |
+| `ROBOT_IP`          | the M20 (`10.21.31.103`)                                             |
+| `DRIVER_PARAMS`     | this robot's m20_driver file, `/etc/hotdog/m20_driver.yaml` (step 3) |
+| `PARAMS_FILE`       | this robot and site, `/etc/hotdog/site.yaml` (steps 5 - 8)           |
+| `SITE`              | the site whose routes and inspection points are used                 |
+| `POD_IP`            | the UniPod MT11                                                      |
+| `HERTZINO_PASSWORD` | the acoustic camera's password (never in a parameter file)           |
 
 The file is read by systemd and bash: no comments after a value, quotes around values with
 spaces. `scripts/setup.sh` checks every component.
