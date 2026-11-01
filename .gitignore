@@ -9,6 +9,8 @@ __pycache__/
 # stack checkouts (vcs import, scripts/dev.sh import)
 /src/dharma/
 /src/external/
+/src/robots/
+/src/drivers/
 
 # local settings
 .env
