@@ -31,10 +31,12 @@ def test_every_component_in_order():
         'dharma_health',
         'hotdog_inspection',
         'hotdog_patrol',
+        'hotdog_reports',
     ]
     assert 'dharma_health' not in by_package(stack.compose(options(health=False)))
     assert 'hotdog_inspection' not in by_package(stack.compose(options(inspection=False)))
     assert 'hotdog_patrol' not in by_package(stack.compose(options(patrol=False)))
+    assert 'hotdog_reports' not in by_package(stack.compose(options(reports=False)))
     assert 'hotdog_base' not in by_package(stack.compose(options(), sim=True))
 
 
