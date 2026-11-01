@@ -18,7 +18,7 @@ from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from hotdog import bringup, stack
 from hotdog import launch_utils as lu
 
-ROBOT_ONLY = ('robot_driver', 'robot_ip', 'driver_params', 'lidar')
+ROBOT_ONLY = ('robot_driver', 'robot_ip', 'driver_params', 'lidar', 'pod', 'pod_ip')
 SIM_ARGUMENTS = [n for n in lu.ARGUMENTS if n not in ROBOT_ONLY]
 SIM_DEFAULTS = {'site': 'mall_loop', 'sites_dir': '/tmp/dharma_sim/sites', 'fiducials': 'false'}
 

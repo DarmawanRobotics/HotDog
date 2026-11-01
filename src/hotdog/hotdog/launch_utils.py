@@ -41,7 +41,10 @@ ARGUMENTS = {
     'driver_params': ('DRIVER_PARAMS', '', 'm20_driver parameters; empty: config/m20_driver.yaml'),
     'lidar': ('LIDAR', 'rslidar', 'rslidar: rslidar_sdk for both Airy | external: clouds exist'),
     'site': ('SITE', '', 'site to load; empty: from the files or the last one'),
-    'sites_dir': ('SITES_DIR', '', 'sites directory (routes); empty: from the parameter files'),
+    'sites_dir': ('SITES_DIR', '~/.hotdog/sites', 'sites: taught routes, inspection points'),
+    'inspection': ('INSPECTION', 'true', 'inspection at the stop points (inspection_node)'),
+    'pod': ('POD', 'true', 'unipod_driver for the UniPod MT11 (gimbal, cameras, temperatures)'),
+    'pod_ip': ('POD_IP', '', 'the UniPod MT11; empty: unipod_driver default (10.21.31.26)'),
     'fiducials': (None, 'false', 'camera throttle + tag detector'),
     'fiducials_detector': (None, 'apriltag', 'apriltag (apriltag_ros) | aruco'),
     'camera_image': (None, '', 'camera image topic; empty: the perception default'),
@@ -100,6 +103,8 @@ def resolve(arg, sim: bool = False):
         camera_image=arg('camera_image').strip(),
         camera_info=arg('camera_info').strip(),
         health=bringup.truthy(arg('health')),
+        inspection=bringup.truthy(arg('inspection')),
+        pod=False if sim else bringup.truthy(arg('pod')),
     )
     data = bringup.merge_files(files)
     data = bringup.with_sites_dir(data, stack.SITES_NODES, options.sites_dir)
@@ -166,6 +171,16 @@ def driver_action(arg, options: stack.Options) -> GroupAction | None:
     source = AnyLaunchDescriptionSource(path)
     launch = IncludeLaunchDescription(source, launch_arguments=args.items())
     return isolated([launch])
+
+
+def pod_action(arg, options: stack.Options) -> GroupAction | None:
+    """Return unipod_driver.launch.py in the unipod namespace, or None when off."""
+    if not options.pod:
+        return None
+    path = share('unipod_driver', 'launch', 'unipod_driver.launch.py')
+    args = stack.non_empty({'namespace': stack.POD_NAMESPACE, 'ip': arg('pod_ip').strip()})
+    source = PythonLaunchDescriptionSource(path)
+    return isolated([IncludeLaunchDescription(source, launch_arguments=args.items())])
 
 
 def performer(context):

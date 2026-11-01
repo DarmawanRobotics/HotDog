@@ -17,7 +17,7 @@ import yaml
 from hotdog import bringup, launch_utils, stack
 
 ROOT = Path(__file__).resolve().parents[2]
-STUBBED = ('hotdog_base', 'm20_bringup')  # besides the dharma_* packages
+STUBBED = ('hotdog_base', 'hotdog_inspection', 'm20_bringup', 'unipod_driver')  # + dharma_*
 CONTRACT = {'params_file', 'robot_params', 'use_sim_time', 'log_level'}
 STUB = """from launch import LaunchDescription
 
@@ -112,7 +112,7 @@ def test_arguments_of_both_launch_files():
              .get_launch_arguments()}  # fmt: skip
     sim = {a.name for a in load_launch('sim.launch.py').generate_launch_description()
            .get_launch_arguments()}  # fmt: skip
-    robot_only = {'robot_driver', 'robot_ip', 'driver_params', 'lidar'}
+    robot_only = {'robot_driver', 'robot_ip', 'driver_params', 'lidar', 'pod', 'pod_ip'}
     assert CONTRACT | robot_only | {'robot_ns', 'site', 'sites_dir'} <= robot
     assert CONTRACT | {'world', 'scenario', 'rviz', 'site'} <= sim
     assert not robot_only & sim
@@ -120,7 +120,11 @@ def test_arguments_of_both_launch_files():
 
 def test_robot_launch_composes_the_stack(packages):
     actions = load_launch('robot.launch.py').launch_setup(context())
-    expected = [bringup.DEFAULT_DRIVER, *(stack.COMPONENTS[c][0] for c in stack.COMPONENTS)]
+    expected = [
+        bringup.DEFAULT_DRIVER,
+        'unipod_driver',
+        *(stack.COMPONENTS[c][0] for c in stack.COMPONENTS),
+    ]
     assert includes(actions) == expected
     assert isinstance(actions[0], LogInfo)
     caller = {**context().launch_configurations, 'world': 'hall'}
@@ -190,6 +194,15 @@ def test_m20_driver_gets_this_products_settings(packages):
     assert bringup.DEFAULT_DRIVER not in includes(actions)
 
 
+def test_pod_include(packages):
+    launch = load_launch('robot.launch.py')
+    args = include_arguments(launch.launch_setup(context(pod_ip='10.21.31.30')), 'unipod_driver')
+    assert args == {'namespace': 'unipod', 'ip': '10.21.31.30'}
+    assert 'unipod_driver' not in includes(launch.launch_setup(context(pod='false')))
+    data = merged_parameters(launch.launch_setup(context(sites_dir='/data/sites')))
+    assert data['inspection_node']['ros__parameters']['sites_dir'] == '/data/sites'
+
+
 def test_sim_launch_adds_the_simulator(packages):
     launch = load_launch('sim.launch.py')
     defaults = {**launch.SIM_DEFAULTS, 'world': '', 'scenario': '', 'rviz': 'false'}
@@ -200,7 +213,9 @@ def test_sim_launch_adds_the_simulator(packages):
     expected = data[stack.HEALTH_NODE]['ros__parameters']['nodes']['expected']
     assert '/sim_robot_node' in expected
     assert '/cloud_merger_node' not in expected
+    assert '/unipod/unipod_driver' not in expected
     assert 'hotdog_base' not in includes(actions)
+    assert 'unipod_driver' not in includes(actions)
 
 
 @pytest.mark.skipif(shutil.which('ros2') is None, reason='ros2 CLI not available')

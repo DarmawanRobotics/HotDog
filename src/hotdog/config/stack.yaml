@@ -52,6 +52,10 @@ path_follower_node:
     avoidance_mode: path_shift
     speed.cruise: 0.5 # m/s
     inspection.reverse_distance_m: 0.0
+    # inspection_node at every stop point; a missing service never holds the patrol. The stop
+    # waits dwell + inspection_timeout_sec at most: above inspection_node max_duration_sec.
+    hooks.inspection: [/inspection/inspect]
+    hooks.inspection_timeout_sec: 180.0
 
 control_mux_node:
   ros__parameters:
