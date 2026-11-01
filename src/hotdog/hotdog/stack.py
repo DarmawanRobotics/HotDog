@@ -17,7 +17,13 @@ from dataclasses import dataclass, field
 HEALTH_NODE = 'health_monitor_node'
 ROUTE_NODE = 'path_loader_node'  # loads taught routes from sites_dir
 # nodes that read sites_dir: the bringup gives them all the one of the launch
-SITES_NODES = ('localization_node', 'site_manager_node', 'route_recorder_node', ROUTE_NODE)
+SITES_NODES = (
+    'localization_node',
+    'site_manager_node',
+    'route_recorder_node',
+    ROUTE_NODE,
+    'inspection_node',
+)
 LIDAR_SOURCES = ('rslidar', 'external')
 
 
@@ -48,6 +54,8 @@ class Options:
     camera_image: str = ''
     camera_info: str = ''
     health: bool = True
+    inspection: bool = True  # inspection_node, the follower's hook at every stop point
+    pod: bool = True  # unipod_driver for the UniPod MT11
 
 
 # component -> (package, launch file, nodes it starts, by node name)
@@ -74,12 +82,15 @@ COMPONENTS = {
     ),
     'control': ('dharma_control', 'control.launch.py', ('control_mux_node',)),
     'health': ('dharma_health', 'health.launch.py', (HEALTH_NODE,)),
+    'inspection': ('hotdog_inspection', 'inspection.launch.py', ('inspection_node',)),
 }
 RSLIDAR_NODE = 'rslidar_sdk_node'  # reads its own file (config/rslidar.yaml), no parameters
+POD_NAMESPACE = 'unipod'
+POD_NODES = ('unipod_driver', 'main/camera', 'sub/camera')  # unipod_driver.launch.py
 FIDUCIAL_NODES = ('apriltag_throttle', 'apriltag')
 DETECTOR_NODES = {'apriltag': 'apriltag', 'aruco': 'aruco_detector_node'}
 SIM = ('dharma_sim', 'sim.launch.py', ('sim_robot_node',))
-ROBOT_ONLY = ('base',)  # the simulator publishes its own cloud
+ROBOT_ONLY = ('base',)  # the simulator publishes its own cloud (and has no pod)
 
 
 def non_empty(arguments: dict) -> dict:
@@ -120,12 +131,13 @@ def component_arguments(o: Options) -> dict:
         'navigation': {'battery_topic': f'{driver}/battery', 'odom_topic': f'{driver}/odom'},
         'control': {'cmd_vel_topic': f'{driver}/cmd_vel'},  # the mux drives the robot
         'health': {},
+        'inspection': {'sites_dir': o.sites_dir},
     }
 
 
 def components(o: Options, sim: bool = False) -> list[str]:
     """Return the components to start, in launch order."""
-    wanted = {'health': o.health}
+    wanted = {'health': o.health, 'inspection': o.inspection}
     return [
         name for name in COMPONENTS if wanted.get(name, True) and not (sim and name in ROBOT_ONLY)
     ]
@@ -162,6 +174,8 @@ def node_names(o: Options, sim: bool = False) -> list[str]:
     names = [n for c in components(o, sim) for n in COMPONENTS[c][2]]
     if not sim and o.lidar == 'rslidar':
         names.append(RSLIDAR_NODE)
+    if not sim and o.pod:
+        names += [f'{POD_NAMESPACE}/{n}' for n in POD_NODES]
     if o.fiducials:
         names += (FIDUCIAL_NODES[0], DETECTOR_NODES[o.fiducials_detector])
     if sim:
