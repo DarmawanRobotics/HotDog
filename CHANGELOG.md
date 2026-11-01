@@ -20,3 +20,6 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
 - Partial discharge at acoustic targets with the Hertzinno HZ-FA-371 over its HTTP API (its
   driver is ROS 1): one detection measured after the robot stopped, corona / surface /
   floating judged by configurable severities and intensity, sound map and PRPD photos kept.
+- `hotdog_patrol`: `patrol/start` from the dock (checks, `localization/assume_origin`, stand-up,
+  AUTO, route, follower), the patrol followed to the end of its route, a summary of the
+  inspections on the way, back to the dock with `charge_start`, patrols at fixed local times.
