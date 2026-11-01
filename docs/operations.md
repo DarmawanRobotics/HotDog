@@ -97,11 +97,16 @@ pause, the e-stop or REMOTE is never overruled.
 
 ## Results
 
+Open **`http://<robot>:8088/`** in a browser on the substation network: every day, each patrol
+as a page with its points, findings, the change since the last round and the thermal, visible
+and sound map images (print it to PDF from the browser). The files behind it:
+
 | What                     | Where                                                                     |
 | ------------------------ | ------------------------------------------------------------------------- |
 | each inspection point    | `~/.hotdog/reports/<day>/<time>_<point>/report.json` and the images       |
 | every finding of the day | `~/.hotdog/reports/<day>/findings.csv`                                    |
 | each patrol              | `~/.hotdog/reports/<day>/patrol_<time>.json`: points, findings, the worst |
+| each patrol's page       | `~/.hotdog/reports/<day>/patrol_<time>.html`                              |
 | live                     | `/inspection/report`, `/patrol/status`                                    |
 
 | Severity  | Thermal (default)                                       | Partial discharge | Act                          |
@@ -110,7 +115,9 @@ pause, the e-stop or REMOTE is never overruled.
 | warning   | ≥ 90 °C, ≥ 21 °C over ambient, ≥ 4 °C over the phases   | surface           | plan a repair                |
 | critical  | ≥ 105 °C, ≥ 41 °C over ambient, ≥ 16 °C over the phases | floating          | report to the substation now |
 
-Copy a day off the robot: `scp -r robot@<ip>:~/.hotdog/reports/<day> .`
+Copy a day off the robot with its images: `scp -r robot@<ip>:~/.hotdog/reports/<day> .`.
+Days older than a year, and the oldest days when less than 5 GB is free, are deleted on the
+robot ([hotdog_reports](../src/hotdog_reports/README.md#retention)).
 
 ## Emergency stop
 
