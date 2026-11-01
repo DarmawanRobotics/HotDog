@@ -61,6 +61,7 @@ class Session:
     reason: str = ''  # why the patrol returns
     inspections: list = field(default_factory=list)  # report directories of the points
     ignore_before: float = 0.0  # s, follower statuses stamped earlier are not this route's
+    # (set once the follower accepted the start: a later status is this route's for sure)
 
     @property
     def busy(self) -> bool:
@@ -86,8 +87,10 @@ class Session:
                 NAV_FAILED: (State.FAILED, f'the follower failed: {message}'),
                 NAV_INACTIVE: (State.STOPPED, 'the follower was stopped'),
             }
-        # a state left from before this patrol's start (not active yet) ends nothing
-        if not self.active or nav_state not in ends:
+        # a state left from before this patrol's start ends nothing: this route's are the ones
+        # after an active state, or stamped after the follower accepted the start
+        fresh = self.active or 0.0 < self.ignore_before < math.inf
+        if not fresh or nav_state not in ends:
             return False
         self.returned = self.state is State.RETURNING and nav_state == NAV_GOAL_REACHED
         return self.end(*ends[nav_state])

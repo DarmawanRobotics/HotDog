@@ -133,7 +133,7 @@ class PatrolNode(DharmaNode):
         steps.append(('auto', stack.auto))
         if path:
             steps.append(('route', lambda: stack.load(path)))
-        steps.append(('start', lambda: stack.trigger(stack.nav_start)))
+        steps.append(('start', self.start_follower))
         ok, message = run_steps(steps)
         with self.lock:
             if self.session.state is State.STARTING:
@@ -218,12 +218,18 @@ class PatrolNode(DharmaNode):
             self.finish()
 
     def start_return(self) -> tuple[bool, str]:
-        """Start the follower on the way back; only its statuses from now on count."""
-        with self.lock:
-            if self.session.state is not State.RETURNING:
-                return False, 'the way back was stopped'
-            self.session.ignore_before = self.get_clock().now().nanoseconds * 1e-9
-        return self.stack.trigger(self.stack.nav_start)
+        """Start the follower on the way back (not when the way back was stopped meanwhile)."""
+        if self.session.state is not State.RETURNING:
+            return False, 'the way back was stopped'
+        return self.start_follower()
+
+    def start_follower(self) -> tuple[bool, str]:
+        """Start the follower; its statuses stamped after it accepted are this route's."""
+        ok, message = self.stack.trigger(self.stack.nav_start)
+        if ok:
+            with self.lock:
+                self.session.ignore_before = self.get_clock().now().nanoseconds * 1e-9
+        return ok, message
 
     # ---------------------------------------------------------------- end
     def srv_stop(self, _request, response):
@@ -253,13 +259,8 @@ class PatrolNode(DharmaNode):
         self.log.info('patrol ended', state=summary['state'], points=summary['points'],
                       worst=summary['worst'], detail=summary['message'])  # fmt: skip
         if (session.state is State.DONE or session.returned) and self.stack.dock is not None:
-            threading.Thread(target=self.dock, daemon=True).start()
+            threading.Thread(target=self.stack.dock_robot, args=(self.log,), daemon=True).start()
         self.publish_status()
-
-    def dock(self):
-        """Send the M20 to its dock (charge_start)."""
-        ok, message = self.stack.trigger(self.stack.dock)
-        (self.log.info if ok else self.log.error)('dock', ok=ok, detail=message)
 
     # ---------------------------------------------------------------- schedule
     def check_schedule(self):

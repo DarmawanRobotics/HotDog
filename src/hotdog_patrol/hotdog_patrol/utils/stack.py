@@ -41,6 +41,11 @@ class StackClients:
         res, error = call(self.load_path, LoadPath.Request(path=path), self.timeout)
         return (res.success, res.message) if res is not None else (False, error)
 
+    def dock_robot(self, log):
+        """Send the M20 to its dock (charge_start) and log the answer."""
+        ok, message = self.trigger(self.dock)
+        (log.info if ok else log.error)('dock', ok=ok, detail=message)
+
     def stop_async(self):
         """Stop the follower without waiting (from a callback)."""
         self.nav_stop.call_async(Trigger.Request())
