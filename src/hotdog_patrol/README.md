@@ -68,8 +68,8 @@ Every second while a patrol runs:
 
 **The way back** (`patrol/return`, or the watchdog with `abort.return_to_dock`): nothing is
 mapped, so the only ground known to be clear is the taught route. The follower is stopped, the
-route is cut at the earliest waypoint within `abort.near_m` of the robot (a route out and back
-along one walkway returns the short way), reversed without stop points into
+route is cut at the nearest waypoint of its first pass within `abort.near_m` of the robot (a
+route out and back along one walkway returns the short way), reversed without stop points into
 `<site>/patrol/return.csv` and followed, facing the way, to `abort.dock_clearance_m` before
 the route's start; then the M20 docks itself (`finish.dock_service`). `patrol/status` shows
 `RETURNING`, then the patrol ends `STOPPED` (operator) or `FAILED` (watchdog) with
