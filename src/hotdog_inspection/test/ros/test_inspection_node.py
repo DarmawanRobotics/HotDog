@@ -101,6 +101,7 @@ def rig(tmp_path):
             Parameter('reports_dir', value=str(reports)),
             Parameter('pod.settle_sec', value=0.0),
             Parameter('thermal.samples', value=1),
+            Parameter('acoustic.enabled', value=False),  # no camera on the test machine
         ]
     )
     helper = rclpy.create_node('inspection_test_helper')
