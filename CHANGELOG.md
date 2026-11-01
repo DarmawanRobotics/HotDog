@@ -38,6 +38,12 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
   stopped, returned and finished patrols with the report link, health ERROR, to Telegram and a
   JSON webhook; spooled on disk and retried while the uplink is down; English or Bahasa
   Indonesia; `alerts/test` (`alerts`, `ALERTS`, `TELEGRAM_BOT_TOKEN`, `HOTDOG_WEBHOOK_TOKEN`).
+- The `hotdog` command for operators (`scripts/hotdog.sh`, `scripts/setup.sh install cli`):
+  status, patrol, return, stop, pause, resume, estop, release, teach, routes, site, anchor,
+  dock, stand, sit, ambient, schedule, reports, alert-test, logs, restart; `ros2 run hotdog
+status` prints the robot at a glance; `scripts/env.sh` gives a shell the service's
+  environment.
+- The service deletes ROS logs older than `LOG_DAYS` (7) at each start.
 - `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
   (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
 - Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and

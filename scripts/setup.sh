@@ -7,21 +7,24 @@
 #   scripts/setup.sh install repos build   # only these
 #   scripts/setup.sh install all           # every component, service included
 #
-# Components: ros tools repos rosdep build service timesync ptp
+# Components: ros tools repos rosdep build cli service timesync ptp
 #   ros      ROS 2 $ROS_DISTRO from packages.ros.org (ros-base)
 #   tools    colcon, rosdep, vcstool, git, cmake, tmux, the Python packages of the stack
 #   repos    the stack (dharma.repos) and the robot packages (external.repos: m20_ros2,
 #            rslidar_sdk) under src/
 #   rosdep   the system dependencies of every package under src/ (libpcap, yaml-cpp, ...)
 #   build    colcon build of the workspace
-#   service  a systemd unit running `ros2 launch hotdog robot.launch.py` at boot
+#   cli      the `hotdog` command for operators (an alias of scripts/hotdog.sh in ~/.bashrc)
+#   service  a systemd unit running `ros2 launch hotdog robot.launch.py` at boot (ROS logs
+#            older than LOG_DAYS days are deleted at each start)
 #   timesync chrony: the system clock follows TIME_SERVERS and serves the robot's computers in
 #            TIME_ALLOW (scripts/timesync.sh)
 #   ptp      the LiDAR (LIDAR_IP or PTP_IFACE) stamps with this computer's clock over PTP
 # Env: ROS_DISTRO (the one in /opt/ros, else the one of the Ubuntu release: 20.04 foxy,
 #      22.04 humble, 24.04 jazzy), BUILD_WORKERS / BUILD_JOBS (lower them when the build runs
 #      out of memory), SERVICE_NAME (hotdog), FORCE=1 (reinstall anyway),
-#      TIME_SERVERS, TIME_ALLOW, LIDAR_IP, PTP_IFACE, PTP_TIMESTAMPING (see scripts/timesync.sh)
+#      TIME_SERVERS, TIME_ALLOW, LIDAR_IP, PTP_IFACE, PTP_TIMESTAMPING (see scripts/timesync.sh),
+#      LOG_DAYS (7)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,9 +49,10 @@ SERVICE_NAME="${SERVICE_NAME:-$BRINGUP_PACKAGE}"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 ENV_FILE="/etc/$SERVICE_NAME/$SERVICE_NAME.env"
 BUILD_STAMP="$ROOT/install/.build_commit"
+LOG_DAYS="${LOG_DAYS:-7}"
 
-ALL=(ros tools repos rosdep build service timesync ptp)
-DEFAULT_INSTALL=(tools repos rosdep build)
+ALL=(ros tools repos rosdep build cli service timesync ptp)
+DEFAULT_INSTALL=(tools repos rosdep build cli)
 
 SUDO=$([[ "$(id -u)" -eq 0 ]] && echo "" || echo "sudo")
 IN_DOCKER=$([[ -f /.dockerenv ]] && echo 1 || echo 0)
@@ -168,6 +172,18 @@ install_build() {
     git -C "$ROOT" rev-parse --short HEAD > "$BUILD_STAMP" 2> /dev/null || echo unknown > "$BUILD_STAMP"
 }
 
+CLI_ALIAS="alias hotdog='$ROOT/scripts/hotdog.sh'"
+check_cli() {
+    grep -qxF "$CLI_ALIAS" "$HOME/.bashrc" 2> /dev/null \
+        || { echo "no hotdog alias in ~/.bashrc"; return 1; }
+    echo "hotdog -> $ROOT/scripts/hotdog.sh"
+}
+install_cli() {
+    sed -i '/^alias hotdog=/d' "$HOME/.bashrc" 2> /dev/null || true
+    echo "$CLI_ALIAS" >> "$HOME/.bashrc"
+    log "new shells have \`hotdog\` (this one: source ~/.bashrc)"
+}
+
 # The launch arguments of the same names default to these (robot.launch.py).
 env_template() {
     printf '%s\n' \
@@ -194,6 +210,7 @@ WorkingDirectory=$ROOT
 EnvironmentFile=-$ENV_FILE
 Environment=PYTHONUNBUFFERED=1
 Environment=RCUTILS_COLORIZED_OUTPUT=0
+ExecStartPre=-/usr/bin/find $HOME/.ros/log -mindepth 1 -maxdepth 1 -mtime +$LOG_DAYS -exec rm -rf {} +
 ExecStart=/bin/bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash && source $ROOT/install/setup.bash && exec ros2 launch $BRINGUP_PACKAGE robot.launch.py'
 Restart=always
 RestartSec=5
