@@ -21,3 +21,17 @@ inspection_node:
       absolute: {attention: 80.0, warning: 90.0, critical: 105.0} # degC
       ambient: {attention: 11.0, warning: 21.0, critical: 41.0} # degC over ambient_c
       similar: {attention: 2.0, warning: 4.0, critical: 16.0} # degC over the other phases
+    acoustic:
+      # Hertzinno HZ-FA-371 over its HTTP API (the ROS driver is ROS 1 only). The password
+      # comes from $HERTZINO_PASSWORD (/etc/hotdog/hotdog.env), never from a parameter.
+      enabled: true # live
+      host: 192.168.2.204 # factory address; this computer needs an address in 192.168.2.x
+      port: 80
+      user: admin
+      duration_sec: 5.0 # detection time when a target sets none
+      # severity of each discharge type (normal | attention | warning | critical)
+      corona: attention # common on outdoor HV conductors, watch the trend
+      surface: warning # tracking on insulators and terminations
+      floating: critical # a floating (loose) part: arcing
+      intensity_warning: 0.0 # a discharge this intense is at least a warning; 0: off
+      intensity_critical: 0.0 # and critical; set both once the site's levels are known
