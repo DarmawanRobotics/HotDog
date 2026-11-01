@@ -12,6 +12,7 @@
 #   hotdog anchor                    the robot is on its dock: make it the map origin again
 #   hotdog teach start               start teaching a route (the robot on its dock)
 #   hotdog teach point [dwell_s]     a stop point here (default 5 s)
+#   hotdog aim <yaw> <pitch> [zoom]  point the pod (deg, yaw positive right, pitch positive up)
 #   hotdog teach target <name> [thermal] [acoustic] [strips=N] [max=C]   pod's view as a target
 #   hotdog teach stop                save the route
 #   hotdog dock                      send the M20 to its dock (charge_start)
@@ -134,6 +135,15 @@ case "${1:-status}" in
         fi
         ;;
     anchor) ros; trigger /localization/assume_origin ;;
+    aim)
+        [[ -n "${3:-}" ]] || { echo "usage: hotdog aim <yaw> <pitch> [zoom]"; exit 1; }
+        yaw=$(float "$2")
+        pitch=$(float "$3")
+        zoom=$(float "${4:-0}")
+        ros
+        call /unipod/set_angle unipod_msgs/srv/SetGimbalAngle "{yaw: $yaw, pitch: $pitch}"
+        [[ "$zoom" == "0.0" ]] || call /unipod/set_zoom unipod_msgs/srv/SetZoom "{zoom: $zoom}"
+        ;;
     teach) ros; shift; teach "$@" ;;
     dock) ros; trigger "$(ns)/charge_start" ;;
     stand) ros; trigger "$(ns)/stand_up" ;;
