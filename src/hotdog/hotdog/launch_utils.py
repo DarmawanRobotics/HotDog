@@ -27,7 +27,11 @@ PACKAGE = 'hotdog'
 
 # name -> (environment variable or None, default, description)
 ARGUMENTS = {
-    'robot_params': (None, '', 'robot profile (robot.* parameters); empty: config/robot.yaml'),
+    'robot_params': (
+        'ROBOT_PARAMS',
+        '',
+        'robot profile (robot.* parameters); empty: config/robot.yaml',
+    ),
     'params_file': ('PARAMS_FILE', '', 'this robot and site on top of config/stack.yaml'),
     'use_sim_time': (None, '', 'true | false; empty: from the parameter files'),
     'log_level': (None, 'info', 'debug, info, warn, error'),

@@ -1,6 +1,6 @@
 # pip install pre-commit && pre-commit install   (CI runs the same hooks)
 # generated diagram exports (make -C docs diagrams) are committed as they come out of draw.io
-exclude: ^docs/diagrams/(pdf|svg)/
+exclude: ^(docs/diagrams/(pdf|svg)/|docs/.*\.pdf$)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -31,6 +31,9 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml, markdown, json]
+        # the guides are Python-Markdown for docs/pdf/build.py: prettier would unindent the
+        # bodies of their admonitions (!!! note)
+        exclude: ^docs/(manual|technician|acceptance)/
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:
