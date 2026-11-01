@@ -104,7 +104,9 @@ def include_arguments(actions, package: str) -> dict:
     for group in (a for a in actions if isinstance(a, GroupAction)):
         for sub in group.get_sub_entities():
             if isinstance(sub, IncludeLaunchDescription):
-                location = Path(sub.launch_description_source.location)
+                source = sub.launch_description_source
+                source.get_launch_description(LaunchContext())  # Foxy: location after loading
+                location = Path(source.location)
                 if location.parent.parent.name == package:
                     return {text(k): text(v) for k, v in sub.launch_arguments}
     raise AssertionError(f'no include of {package}')
