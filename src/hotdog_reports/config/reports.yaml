@@ -1,0 +1,16 @@
+# hotdog_reports defaults: only what differs from the configuration dataclasses, plus notes.
+# Every parameter with its unit and range: `ros2 param describe /report_node <name>`.
+report_node:
+  ros__parameters:
+    reports_dir: ~/.hotdog/reports # inspection_node and patrol_node write here
+    title: HotDog substation patrol # heading of every page
+    robot_name: HotDog # e.g. "HotDog 01 - GI Cawang"
+    trend_days: 30 # each finding is compared with the last round within this many days
+    retention:
+      days: 365 # delete days older than this (0: keep everything)
+      min_free_gb: 5.0 # then delete the oldest days while less is free (today never)
+      period_min: 60.0
+    server:
+      enabled: true # http://<robot>:8088/ on the substation network, read-only
+      host: 0.0.0.0 # 127.0.0.1: only this computer (open it through an SSH tunnel)
+      port: 8088
