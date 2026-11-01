@@ -93,6 +93,38 @@ class PodConfig:
     jpeg_quality: int = param(90, min=10, max=100, doc='evidence images')
 
 
+SEVERITIES = ('normal', 'attention', 'warning', 'critical')
+
+
+@dataclass(frozen=True)
+class AcousticConfig:
+    """The Hertzinno HZ-FA-371 (partial discharge) and how its results are judged."""
+
+    enabled: bool = param(True, doc='false: acoustic targets are skipped')
+    host: str = param('192.168.2.204', live=False, doc='camera address (factory 192.168.2.204)')
+    port: int = param(80, min=1, max=65535, live=False, doc='HTTP port')
+    user: str = param('admin', live=False, doc='login user; the password: $HERTZINO_PASSWORD')
+    timeout_sec: float = param(5.0, min=0.5, max=60.0, unit='s', doc='each HTTP request')
+    duration_sec: float = param(
+        5.0, min=1.0, max=60.0, unit='s', doc='detection time when the target sets none'
+    )
+    margin_sec: float = param(
+        15.0, min=1.0, max=120.0, unit='s', doc='wait this long for the result after the time'
+    )
+    photo_wait_sec: float = param(
+        8.0, min=0.0, max=60.0, unit='s', doc='retry photos the camera is still writing'
+    )
+    corona: str = param('attention', choices=SEVERITIES, doc='severity of corona discharge')
+    surface: str = param('warning', choices=SEVERITIES, doc='severity of surface discharge')
+    floating: str = param('critical', choices=SEVERITIES, doc='severity of floating discharge')
+    intensity_warning: float = param(
+        0.0, min=0.0, max=1000.0, doc='a discharge at least this intense is a warning; 0: off'
+    )
+    intensity_critical: float = param(
+        0.0, min=0.0, max=1000.0, doc='a discharge at least this intense is critical; 0: off'
+    )
+
+
 @dataclass(frozen=True)
 class InspectionConfig:
     """Everything inspection_node reads."""
@@ -113,3 +145,4 @@ class InspectionConfig:
     )
     pod: PodConfig = nested(PodConfig)
     thermal: ThermalConfig = nested(ThermalConfig)
+    acoustic: AcousticConfig = nested(AcousticConfig)

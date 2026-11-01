@@ -3,7 +3,7 @@
 <package format="3">
   <name>hotdog_inspection</name>
   <version>0.1.0</version>
-  <description>Substation inspection at the stop points: overheat analysis with the UniPod MT11 (absolute, over ambient, between similar components), reports with evidence images, targets taught from the pod's view.</description>
+  <description>Substation inspection at the stop points: overheat analysis with the UniPod MT11 (absolute, over ambient, between similar components), partial discharge with the Hertzinno HZ-FA-371, reports with evidence images, targets taught from the pod's view.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
 
