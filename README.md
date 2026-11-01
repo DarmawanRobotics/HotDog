@@ -111,30 +111,22 @@ M20 calibration, LiDARs, pod, acoustic camera, time). Day to day:
 
 ## Operate
 
+On the robot computer, the `hotdog` command ([scripts/hotdog.sh](scripts/hotdog.sh)):
+
 ```bash
-# teach (from the dock): a route with stop points, a target at each stop
-ros2 service call /localization/assume_origin std_srvs/srv/Trigger
-ros2 service call /route/start std_srvs/srv/Trigger
-ros2 service call /route/mark_stop_point dharma_interfaces/srv/MarkStopPoint "{dwell_sec: 5.0}"
-ros2 service call /inspection/add_target hotdog_interfaces/srv/AddTarget \
-  "{name: bay1_ds_clamps, thermal: true, acoustic: true, strips: 3}"
-ros2 service call /route/stop std_srvs/srv/Trigger
-
-# patrol (from the dock), on demand or on a schedule
-ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 2026-11-01_09-30-00}"
-ros2 param set /patrol_node schedule.enabled true
-
-# emergency stop (latched): the M20 remote, or
-ros2 service call /control/estop/engage std_srvs/srv/Trigger
+hotdog status                                   # the robot at a glance
+hotdog stand && hotdog teach start              # teach from the dock, drive with the M20 remote
+hotdog teach point                              # a stop point at each piece of equipment
+hotdog teach target bay1_ds_clamps strips=3 acoustic   # the pod's view there
+hotdog teach stop && hotdog dock
+hotdog patrol                                   # the route patrolled last (or name one)
+hotdog schedule on                              # times and route: patrol_node in the site file
+hotdog return                                   # back to the dock along the route
+hotdog estop                                    # latched, until `hotdog release`
 ```
 
-| Check      |                                                                                 |
-| ---------- | ------------------------------------------------------------------------------- |
-| Patrol     | `ros2 topic echo /patrol/status`: state, route, findings per severity           |
-| Inspection | `ros2 topic echo /inspection/status`, `/inspection/report`; `~/.hotdog/reports` |
-| Health     | `ros2 topic echo /health/status`                                                |
-| Robot      | `ros2 topic echo /m20/state`                                                    |
-| Logs       | `journalctl -fu hotdog`                                                         |
+Reports: `http://<robot>:8088/`. Alerts: the crew's Telegram group. Day to day:
+[docs/operations.md](docs/operations.md).
 
 ## Develop
 
