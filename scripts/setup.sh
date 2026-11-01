@@ -190,7 +190,7 @@ env_template() {
         "# $SERVICE_NAME.service environment (also read by bash): no comments after values" \
         "ROS_DISTRO=$ROS_DISTRO" 'ROS_DOMAIN_ID=0' 'RMW_IMPLEMENTATION=rmw_fastrtps_cpp' \
         'ROBOT_NS=m20' 'ROBOT_DRIVER=m20_bringup' 'ROBOT_IP=10.21.31.103' 'DRIVER_PARAMS=' \
-        'PARAMS_FILE=' \
+        'PARAMS_FILE=' 'ROBOT_PARAMS=' \
         'LIDAR=rslidar' 'SITE=' "SITES_DIR=$HOME/.hotdog/sites" 'POD_IP=' 'HERTZINO_PASSWORD=' \
         'TELEGRAM_BOT_TOKEN=' 'HOTDOG_WEBHOOK_TOKEN=' \
         'OPENBLAS_NUM_THREADS=1' 'OMP_NUM_THREADS=1'
