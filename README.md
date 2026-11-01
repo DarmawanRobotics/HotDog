@@ -52,16 +52,105 @@ taught and repeated from the dock. The robot, its LiDARs and their drivers come 
 
 </details>
 
+## Architecture
+
+```
+                 ┌────────────────────────────────────────────────────────────────────┐
+ HotDog          │ patrol_node: dock -> route -> dock, schedule, patrol summaries     │
+                 │ inspection_node: overheat (UniPod MT11), partial discharge (HZ-FA) │
+                 ├────────────────────────────────────────────────────────────────────┤
+ Dharma          │ path follower (stop points -> inspection hook) · avoidance         │
+                 │ sites and taught routes · localization (dock = map origin)         │
+                 │ sector scans · control mux (only cmd_vel, e-stop, field) · health  │
+                 ├────────────────────────────────────────────────────────────────────┤
+ robot           │ m20_driver: odometry camera_init -> body, IMU, battery, cmd_vel    │
+                 │ cloud_merger_node: front + rear Airy -> /lidar/points              │
+                 │ unipod_driver: gimbal, zoom, streams, temperatures                 │
+                 └────────────────────────────────────────────────────────────────────┘
+```
+
+- **Odometry only.** The M20's own dead reckoning is the odometry, nothing is mapped; the dock
+  is the origin of the map frame, re-anchored before every patrol. Routes and inspection points
+  are taught from the dock and repeated from it.
+- **Motion has one way out.** The control mux is the only publisher of `/m20/cmd_vel`; the
+  protective field on the 360° scan of both Airy, the health speed limit and the latched e-stop
+  apply to every source. m20_driver stops on its own without fresh commands.
+- **Inspection never holds the patrol.** The follower calls `inspection/inspect` at each stop
+  point; a stop without an inspection point, a missing pod or camera answers and the robot
+  moves on; everything found is in the reports.
+
 ## Quick start
 
 ```bash
-scripts/dev.sh up                     # dev container, ROS 2 Foxy
+git clone git@github.com:DarmawanRobotics/HotDog.git && cd HotDog
+scripts/dev.sh up                     # dev container (ROS 2 Foxy, VNC): imports the repos
 scripts/dev.sh build && scripts/dev.sh test
 scripts/dev.sh shell
-ros2 launch hotdog sim.launch.py rviz:=true                   # no robot needed
+ros2 launch hotdog sim.launch.py rviz:=true          # the stack on dharma_sim, no robot
 ```
 
-On the robot: `scripts/setup.sh install`, then `scripts/setup.sh install service`. The robot
-driver runs in the namespace `/m20` (`/m20/cmd_vel`, `/m20/odom`).
+## Install on the robot
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the conventions.
+Ubuntu 20.04 with ROS 2 Foxy on the payload computer, its SSH key on GitHub with read access to
+the `dharma_*` repositories:
+
+```bash
+git clone git@github.com:DarmawanRobotics/HotDog.git ~/dev/HotDog && cd ~/dev/HotDog
+scripts/setup.sh install                 # tools, repos, rosdep, build
+scripts/setup.sh install service         # /etc/hotdog/hotdog.env + systemd unit at boot
+sudoedit /etc/hotdog/hotdog.env          # ROBOT_IP, SITE, DRIVER_PARAMS, POD_IP, HERTZINO_PASSWORD
+sudo systemctl start hotdog && journalctl -fu hotdog
+scripts/setup.sh                         # every line ok?
+```
+
+The first time on a robot or a site: [docs/commissioning.md](docs/commissioning.md) (network,
+M20 calibration, LiDARs, pod, acoustic camera, time). Day to day:
+[docs/operations.md](docs/operations.md).
+
+## Operate
+
+```bash
+# teach (from the dock): a route with stop points, a target at each stop
+ros2 service call /localization/assume_origin std_srvs/srv/Trigger
+ros2 service call /route/start std_srvs/srv/Trigger
+ros2 service call /route/mark_stop_point dharma_interfaces/srv/MarkStopPoint "{dwell_sec: 5.0}"
+ros2 service call /inspection/add_target hotdog_interfaces/srv/AddTarget \
+  "{name: bay1_ds_clamps, thermal: true, acoustic: true, strips: 3}"
+ros2 service call /route/stop std_srvs/srv/Trigger
+
+# patrol (from the dock), on demand or on a schedule
+ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 20261101_093000}"
+ros2 param set /patrol_node schedule.enabled true
+
+# emergency stop (latched): the M20 remote, or
+ros2 service call /control/estop/engage std_srvs/srv/Trigger
+```
+
+| Check      |                                                                                 |
+| ---------- | ------------------------------------------------------------------------------- |
+| Patrol     | `ros2 topic echo /patrol/status`: state, route, findings per severity           |
+| Inspection | `ros2 topic echo /inspection/status`, `/inspection/report`; `~/.hotdog/reports` |
+| Health     | `ros2 topic echo /health/status`                                                |
+| Robot      | `ros2 topic echo /m20/state`                                                    |
+| Logs       | `journalctl -fu hotdog`                                                         |
+
+## Develop
+
+```
+HotDog/
+├── .github/workflows/ci.yml   lint, scripts, Foxy build and tests (dharma.repos + external.repos)
+├── .devcontainer/ compose.yaml docker/   dev container (Foxy, VNC)
+├── docs/                      commissioning and operations
+├── dharma.repos external.repos   the stack and the robot's drivers (vcstool)
+├── scripts/                   setup.sh (robot), dev.sh (container), start_tmux.sh, timesync.sh
+└── src/
+    ├── hotdog hotdog_*        the product packages
+    ├── dharma/                imported from dharma.repos (git-ignored)
+    └── robots/ drivers/ external/   imported from external.repos (git-ignored)
+```
+
+`colcon test` runs the style check and the unit and in-process ROS tests of every package.
+Branch, commit and code rules are in [CONTRIBUTING.md](CONTRIBUTING.md), changes in
+[CHANGELOG.md](CHANGELOG.md).
+
+HotDog is released under the [Apache License 2.0](LICENSE).

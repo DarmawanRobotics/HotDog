@@ -174,6 +174,7 @@ env_template() {
         "# $SERVICE_NAME.service environment (also read by bash): no comments after values" \
         "ROS_DISTRO=$ROS_DISTRO" 'ROS_DOMAIN_ID=0' 'RMW_IMPLEMENTATION=rmw_fastrtps_cpp' \
         'ROBOT_NS=m20' 'ROBOT_DRIVER=m20_bringup' 'ROBOT_IP=10.21.31.103' 'DRIVER_PARAMS=' \
+        'PARAMS_FILE=' \
         'LIDAR=rslidar' 'SITE=' "SITES_DIR=$HOME/.hotdog/sites" 'POD_IP=' 'HERTZINO_PASSWORD=' \
         'OPENBLAS_NUM_THREADS=1' 'OMP_NUM_THREADS=1'
 }
@@ -216,7 +217,7 @@ check_service() {
 install_service() {
     if [[ ! -f "$ENV_FILE" ]]; then
         env_template | $SUDO install -D -m 640 -g "$(id -gn)" /dev/stdin "$ENV_FILE"
-        log "created $ENV_FILE: set ROBOT_IP, SITE, DRIVER_PARAMS, POD_IP, HERTZINO_PASSWORD"
+        log "created $ENV_FILE: set ROBOT_IP, SITE, DRIVER_PARAMS, PARAMS_FILE, POD_IP, HERTZINO_PASSWORD"
     fi
     service_unit | $SUDO tee "$SERVICE_FILE" > /dev/null
     $SUDO systemctl daemon-reload
