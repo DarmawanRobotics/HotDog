@@ -1,7 +1,0 @@
-printWidth: 99
-proseWrap: preserve
-singleQuote: false
-overrides:
-  - files: ["*.yaml", "*.yml"]
-    options:
-      bracketSpacing: false

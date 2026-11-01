@@ -4,8 +4,8 @@
 
 ## How it was tested
 
-- [ ] CI green (lint, Foxy, Humble and Jazzy build and tests)
-- [ ] Tried in the simulator (`ros2 launch robot_bringup sim.launch.py`), in the dev container or
+- [ ] CI green (lint, Foxy build and tests)
+- [ ] Tried in the simulator (`ros2 launch hotdog sim.launch.py`), in the dev container or
       on the robot: <!-- what you ran and saw -->
 
 ## Checklist

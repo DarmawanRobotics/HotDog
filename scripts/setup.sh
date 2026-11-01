@@ -14,13 +14,13 @@
 #   livox    Livox-SDK2 (for livox_ros_driver2)
 #   rosdep   the system dependencies of every package under src/
 #   build    colcon build of the workspace
-#   service  a systemd unit running `ros2 launch robot_bringup robot.launch.py` at boot
+#   service  a systemd unit running `ros2 launch hotdog robot.launch.py` at boot
 #   timesync chrony: the system clock follows TIME_SERVERS and serves the robot's computers in
 #            TIME_ALLOW (scripts/timesync.sh)
 #   ptp      the LiDAR (LIDAR_IP or PTP_IFACE) stamps with this computer's clock over PTP
 # Env: ROS_DISTRO (the one in /opt/ros, else the one of the Ubuntu release: 20.04 foxy,
 #      22.04 humble, 24.04 jazzy), LIVOX_SDK_REF (master), BUILD_WORKERS / BUILD_JOBS (lower them
-#      when the build runs out of memory), SERVICE_NAME (robot_bringup), FORCE=1 (reinstall anyway),
+#      when the build runs out of memory), SERVICE_NAME (hotdog), FORCE=1 (reinstall anyway),
 #      TIME_SERVERS, TIME_ALLOW, LIDAR_IP, PTP_IFACE, PTP_TIMESTAMPING (see scripts/timesync.sh)
 set -euo pipefail
 
@@ -43,7 +43,7 @@ LIVOX_SDK_REPO="${LIVOX_SDK_REPO:-https://github.com/Livox-SDK/Livox-SDK2.git}"
 LIVOX_SDK_REF="${LIVOX_SDK_REF:-master}"
 BUILD_WORKERS="${BUILD_WORKERS:-}"
 BUILD_JOBS="${BUILD_JOBS:-}"
-BRINGUP_PACKAGE=robot_bringup
+BRINGUP_PACKAGE=hotdog
 SERVICE_NAME="${SERVICE_NAME:-$BRINGUP_PACKAGE}"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 ENV_FILE="/etc/$SERVICE_NAME/robot.env"
@@ -194,7 +194,7 @@ env_template() {
     printf '%s\n' \
         "# $SERVICE_NAME.service environment (also read by bash): no comments after values" \
         "ROS_DISTRO=$ROS_DISTRO" 'ROS_DOMAIN_ID=0' 'RMW_IMPLEMENTATION=rmw_fastrtps_cpp' \
-        'ROBOT_NS=robot' 'ROBOT_DRIVER=' 'ODOMETRY=fast_lio' 'SITE=' "SITES_DIR=$HOME/sites" \
+        'ROBOT_NS=m20' 'ROBOT_DRIVER=' 'ODOMETRY=fast_lio' 'SITE=' "SITES_DIR=$HOME/sites" \
         'OPENBLAS_NUM_THREADS=1' 'OMP_NUM_THREADS=1'
 }
 service_unit() {
