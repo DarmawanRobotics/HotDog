@@ -31,6 +31,9 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
   `patrol/return` on request, `PatrolStatus.RETURNING`, `returned` and `battery`.
 - A patrol started without a route runs the route patrolled last on the site.
 - The patrol summary lists the report directories of its inspection points.
+- `hotdog_reports`: a page per patrol with every point, finding, the change since the last
+  round of the same finding and the evidence images; day and front pages; retention by age
+  and free space; the reports served read-only on port 8088 (`reports`, `REPORTS`).
 - `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
   (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
 - Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and

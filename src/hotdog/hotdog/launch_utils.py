@@ -48,6 +48,11 @@ ARGUMENTS = {
         'true',
         'patrols from the dock, on demand or on a schedule (patrol_node)',
     ),
+    'reports': (
+        'REPORTS',
+        'true',
+        'HTML reports, retention and the report server on port 8088 (report_node)',
+    ),
     'pod': ('POD', 'true', 'unipod_driver for the UniPod MT11 (gimbal, cameras, temperatures)'),
     'pod_ip': ('POD_IP', '', 'the UniPod MT11; empty: unipod_driver default (10.21.31.26)'),
     'fiducials': (None, 'false', 'camera throttle + tag detector'),
@@ -110,6 +115,7 @@ def resolve(arg, sim: bool = False):
         health=bringup.truthy(arg('health')),
         inspection=bringup.truthy(arg('inspection')),
         patrol=bringup.truthy(arg('patrol')),
+        reports=bringup.truthy(arg('reports')),
         pod=False if sim else bringup.truthy(arg('pod')),
     )
     data = bringup.merge_files(files)

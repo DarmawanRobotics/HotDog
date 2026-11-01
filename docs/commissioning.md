@@ -28,6 +28,10 @@ network:
 
 Check: `ping 10.21.31.103`, `ping 10.21.31.26`, `ping 192.168.2.204`.
 
+Operators reach the robot on the substation network for the reports: TCP **8088**
+(`http://<robot>:8088/`, read-only) and SSH. Ask for both in the substation's network
+permit; nothing else needs to be open towards the robot.
+
 ## 2. Install
 
 ```bash
