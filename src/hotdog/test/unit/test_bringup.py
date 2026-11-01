@@ -33,11 +33,11 @@ def test_namespace():
             bringup.resolve_namespace(bad)
 
 
-def test_odometry_and_site():
-    assert bringup.resolve_odometry('') == 'fast_lio'
-    assert bringup.resolve_odometry(' Leg_Kilo ') == 'leg_kilo'
-    with pytest.raises(BringupError, match='odometry'):
-        bringup.resolve_odometry('slam')
+def test_lidar_and_site():
+    assert bringup.resolve_lidar('') == 'rslidar'
+    assert bringup.resolve_lidar(' External ') == 'external'
+    with pytest.raises(BringupError, match='lidar'):
+        bringup.resolve_lidar('livox')
     assert bringup.resolve_site(' lobby_2 ') == 'lobby_2'
     assert bringup.resolve_site('') == ''
     with pytest.raises(BringupError, match='site'):
@@ -54,6 +54,15 @@ def test_driver():
     for bad in ('my driver', 'pkg/../x.launch.py', 'pkg/file.py', '/abs/path.launch.py'):
         with pytest.raises(BringupError, match='robot_driver'):
             bringup.resolve_driver(bad)
+
+
+def test_driver_nodes():
+    assert bringup.driver_nodes('m20_bringup', 'm20') == [
+        '/m20/m20_driver',
+        '/m20/robot_state_publisher',
+    ]
+    assert bringup.driver_nodes('', 'm20') == []
+    assert bringup.driver_nodes('other_driver', 'm20') == []
 
 
 def test_existing_file(tmp_path):
@@ -144,15 +153,16 @@ def test_write_params_round_trip(tmp_path):
 
 
 def test_shipped_override_files_are_valid():
-    for name in ('stack.yaml', 'sim.yaml'):
+    for name in ('stack.yaml', 'sim.yaml', 'm20_driver.yaml'):
         assert bringup.load_params(str(CONFIG / name))
 
 
-def test_route_loader_gets_the_sites_dir():
+def test_every_sites_node_gets_the_sites_dir():
     data = {'path_loader_node': {'ros__parameters': {'route': 'loop.csv'}}}
-    out = bringup.with_sites_dir(data, 'path_loader_node', '/sites')
+    out = bringup.with_sites_dir(data, ('path_loader_node', 'route_recorder_node'), '/sites')
     assert out['path_loader_node']['ros__parameters'] == {
         'route': 'loop.csv',
         'sites_dir': '/sites',
     }
-    assert bringup.with_sites_dir(data, 'path_loader_node', '') is data
+    assert out['route_recorder_node']['ros__parameters'] == {'sites_dir': '/sites'}
+    assert bringup.with_sites_dir(data, ('path_loader_node',), '') is data

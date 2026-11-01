@@ -1,16 +1,18 @@
-# Sensor driver and LiDAR-inertial odometry: vcs import src < external.repos
-# Livox-SDK2 (needed by livox_ros_driver2) is installed by scripts/setup.sh install livox.
+# The robot, its sensors and their drivers: vcs import --recursive src < external.repos
+# (scripts/dev.sh import, scripts/setup.sh install repos). Pinned like dharma.repos: a tag or a
+# commit with what it is in a comment.
 repositories:
-  external/livox_ros_driver2:
+  # Lynx M20: protocol driver (cmd_vel, odom, imu, battery, services) and the URDF
+  robots/m20_ros2:
     type: git
-    url: https://github.com/JasonY85/livox_ros_driver2.git
-    version: humble
-  external/FAST_LIO:
+    url: https://github.com/DarmawanRobotics/m20_ros2.git
+    version: 8b23d1502ebc3c39da379bc38c2f4dbe4198cf7c # main 2026-10-18
+  # RoboSense Airy, front and rear (rs_driver is a submodule: --recursive)
+  external/rslidar_sdk:
     type: git
-    url: https://github.com/hku-mars/FAST_LIO.git
-    version: ROS2
-  # Leg-KILO (odometry method leg_kilo), the DarmawanRobotics fork with ROS 2 support:
-  # external/legkilo:
-  #   type: git
-  #   url: https://github.com/DarmawanRobotics/legkilo.git
-  #   version: main
+    url: https://github.com/RoboSense-LiDAR/rslidar_sdk.git
+    version: v1.5.20
+  external/rslidar_msg:
+    type: git
+    url: https://github.com/RoboSense-LiDAR/rslidar_msg.git
+    version: fe8a95cb242bd294cc3d5e3422f2093fb49a56ee # master 2022-10-26

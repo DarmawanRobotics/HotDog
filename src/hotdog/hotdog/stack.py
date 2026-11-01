@@ -1,9 +1,13 @@
 """
-The composition of the Dharma stack: which package launch files start, with which arguments.
+The composition of HotDog: the Dharma stack on the M20's own odometry, plus its LiDARs.
 
 This is the one place to adjust when a package's launch contract changes. Every package launch
-accepts params_file, robot_params, use_sim_time and log_level (DESIGN.md section 7); only
-non-empty arguments are passed, so an unset one never hides a value from a parameter file.
+accepts params_file, robot_params, use_sim_time and log_level; only non-empty arguments are
+passed, so an unset one never hides a value from a parameter file.
+
+HotDog maps nothing: odometry is the robot's own (m20_driver publishes camera_init -> body),
+localization takes the odometry start as the map origin, and dharma_mapping only keeps the
+sites and their taught routes (its grid mapper stays idle).
 """
 
 from __future__ import annotations
@@ -12,6 +16,9 @@ from dataclasses import dataclass, field
 
 HEALTH_NODE = 'health_monitor_node'
 ROUTE_NODE = 'path_loader_node'  # loads taught routes from sites_dir
+# nodes that read sites_dir: the bringup gives them all the one of the launch
+SITES_NODES = ('localization_node', 'site_manager_node', 'route_recorder_node', ROUTE_NODE)
+LIDAR_SOURCES = ('rslidar', 'external')
 
 
 @dataclass(frozen=True)
@@ -30,14 +37,13 @@ class Options:
 
     robot_params: str
     params_file: str
-    robot_ns: str = 'robot'
-    odometry: str = 'fast_lio'
+    robot_ns: str = 'm20'
+    lidar: str = 'rslidar'  # rslidar: rslidar_sdk for both Airy; external: clouds exist
     use_sim_time: str = ''
     log_level: str = 'info'
     site: str = ''
     sites_dir: str = ''
-    start_mapping: bool = False
-    fiducials: bool = True
+    fiducials: bool = False
     fiducials_detector: str = 'apriltag'  # apriltag | aruco
     camera_image: str = ''
     camera_info: str = ''
@@ -48,6 +54,7 @@ class Options:
 COMPONENTS = {
     'odometry': ('dharma_odometry', 'odometry.launch.py', ('odometry_monitor_node',)),
     'localization': ('dharma_localization', 'localization.launch.py', ('localization_node',)),
+    'base': ('hotdog_base', 'base.launch.py', ('cloud_merger_node',)),
     'perception': ('dharma_perception', 'perception.launch.py', ('lidar_sector_node',)),
     'mapping': (
         'dharma_mapping',
@@ -68,11 +75,11 @@ COMPONENTS = {
     'control': ('dharma_control', 'control.launch.py', ('control_mux_node',)),
     'health': ('dharma_health', 'health.launch.py', (HEALTH_NODE,)),
 }
-ESTIMATOR_NODES = {'fast_lio': ('fastlio_mapping_node',)}  # leg_kilo names its own node
+RSLIDAR_NODE = 'rslidar_sdk_node'  # reads its own file (config/rslidar.yaml), no parameters
 FIDUCIAL_NODES = ('apriltag_throttle', 'apriltag')
 DETECTOR_NODES = {'apriltag': 'apriltag', 'aruco': 'aruco_detector_node'}
 SIM = ('dharma_sim', 'sim.launch.py', ('sim_robot_node',))
-PARAMETER_ONLY = ('odometry_gate',)  # reads the files, then exits (wait_still)
+ROBOT_ONLY = ('base',)  # the simulator publishes its own cloud
 
 
 def non_empty(arguments: dict) -> dict:
@@ -99,40 +106,36 @@ def component_arguments(o: Options) -> dict:
     """Return the launch arguments of every component (before dropping empty ones)."""
     driver = f'/{o.robot_ns}'
     return {
-        'odometry': {
-            'method': o.odometry,
-            'save_map': flag(o.start_mapping),
-            'leg_odom_topic': f'{driver}/odom',
-            'site_config': o.params_file,  # the estimator reads it too (FAST-LIO overrides)
-        },
+        # the robot's own odometry: nothing to start, the monitor reads it (stack.yaml)
+        'odometry': {'method': 'external'},
         'localization': {'sites_dir': o.sites_dir},
+        'base': {'lidar': o.lidar},
         'perception': {
             'fiducials': flag(o.fiducials),
             'fiducials_detector': o.fiducials_detector,
             'camera_image': o.camera_image,
             'camera_info': o.camera_info,
         },
-        'mapping': {
-            'sites_dir': o.sites_dir,
-            'site': o.site,
-            'start_mapping': 'true' if o.start_mapping else '',
-        },
+        'mapping': {'sites_dir': o.sites_dir, 'site': o.site},
         'navigation': {'battery_topic': f'{driver}/battery', 'odom_topic': f'{driver}/odom'},
-        'control': {'cmd_vel_topic': f'/{o.robot_ns}/cmd_vel'},  # the mux drives the robot
+        'control': {'cmd_vel_topic': f'{driver}/cmd_vel'},  # the mux drives the robot
         'health': {},
     }
 
 
-def components(o: Options) -> list[str]:
+def components(o: Options, sim: bool = False) -> list[str]:
     """Return the components to start, in launch order."""
-    return [name for name in COMPONENTS if name != 'health' or o.health]
+    wanted = {'health': o.health}
+    return [
+        name for name in COMPONENTS if wanted.get(name, True) and not (sim and name in ROBOT_ONLY)
+    ]
 
 
-def compose(o: Options) -> list[Include]:
+def compose(o: Options, sim: bool = False) -> list[Include]:
     """Return the package launch files of the stack with their arguments."""
     arguments = component_arguments(o)
     out = []
-    for name in components(o):
+    for name in components(o, sim):
         package, launch_file, _ = COMPONENTS[name]
         args = non_empty({**common(o), **arguments[name]})
         out.append(Include(package, launch_file, args))
@@ -156,8 +159,9 @@ def sim_include(o: Options, world: str = '', scenario: str = '', rviz: bool = Fa
 
 def node_names(o: Options, sim: bool = False) -> list[str]:
     """Return the fully qualified names of every node the bringup starts."""
-    names = [n for c in components(o) for n in COMPONENTS[c][2]]
-    names += ESTIMATOR_NODES.get(o.odometry, ())
+    names = [n for c in components(o, sim) for n in COMPONENTS[c][2]]
+    if not sim and o.lidar == 'rslidar':
+        names.append(RSLIDAR_NODE)
     if o.fiducials:
         names += (FIDUCIAL_NODES[0], DETECTOR_NODES[o.fiducials_detector])
     if sim:
@@ -168,5 +172,4 @@ def node_names(o: Options, sim: bool = False) -> list[str]:
 def known_sections() -> list[str]:
     """Return every node name a parameter file of the bringup may configure."""
     names = [n for c in COMPONENTS.values() for n in c[2]]
-    names += [n for nodes in ESTIMATOR_NODES.values() for n in nodes]
-    return sorted({*names, *FIDUCIAL_NODES, *DETECTOR_NODES.values(), *SIM[2], *PARAMETER_ONLY})
+    return sorted({*names, *FIDUCIAL_NODES, *DETECTOR_NODES.values(), *SIM[2]})

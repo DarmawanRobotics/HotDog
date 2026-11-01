@@ -32,12 +32,17 @@ ARGUMENTS = {
     'use_sim_time': (None, '', 'true | false; empty: from the parameter files'),
     'log_level': (None, 'info', 'debug, info, warn, error'),
     'robot_ns': ('ROBOT_NS', bringup.DEFAULT_ROBOT_NS, 'driver namespace (/<ns>/cmd_vel, odom)'),
-    'robot_driver': ('ROBOT_DRIVER', '', '<package>[/<file>.launch.py]; empty: started elsewhere'),
-    'odometry': ('ODOMETRY', 'fast_lio', 'fast_lio | leg_kilo | external'),
-    'site': ('SITE', '', 'site to load (or to map); empty: from the files or the last one'),
-    'sites_dir': ('SITES_DIR', '', 'sites directory; empty: from the parameter files'),
-    'start_mapping': (None, 'false', 'true: map `site` from the start when it is new'),
-    'fiducials': (None, 'true', 'camera throttle + tag detector'),
+    'robot_driver': (
+        'ROBOT_DRIVER',
+        bringup.DEFAULT_DRIVER,
+        '<package>[/<file>.launch.py]; empty: started elsewhere',
+    ),
+    'robot_ip': ('ROBOT_IP', '', 'the M20 (m20_bringup robot_ip); empty: its driver_params'),
+    'driver_params': ('DRIVER_PARAMS', '', 'm20_driver parameters; empty: config/m20_driver.yaml'),
+    'lidar': ('LIDAR', 'rslidar', 'rslidar: rslidar_sdk for both Airy | external: clouds exist'),
+    'site': ('SITE', '', 'site to load; empty: from the files or the last one'),
+    'sites_dir': ('SITES_DIR', '', 'sites directory (routes); empty: from the parameter files'),
+    'fiducials': (None, 'false', 'camera throttle + tag detector'),
     'fiducials_detector': (None, 'apriltag', 'apriltag (apriltag_ros) | aruco'),
     'camera_image': (None, '', 'camera image topic; empty: the perception default'),
     'camera_info': (None, '', 'camera info topic; empty: the perception default'),
@@ -85,32 +90,32 @@ def resolve(arg, sim: bool = False):
         robot_params=robot_params,
         params_file='',
         robot_ns=bringup.resolve_namespace(arg('robot_ns')),
-        odometry='external' if sim else bringup.resolve_odometry(arg('odometry')),
+        lidar='external' if sim else bringup.resolve_lidar(arg('lidar')),
         use_sim_time=arg('use_sim_time').strip(),
         log_level=arg('log_level').strip() or 'info',
         site=bringup.resolve_site(arg('site')),
         sites_dir=os.path.expanduser(arg('sites_dir').strip()),
-        start_mapping=bringup.truthy(arg('start_mapping')),
         fiducials=bringup.truthy(arg('fiducials')),
         fiducials_detector=bringup.resolve_detector(arg('fiducials_detector')),
         camera_image=arg('camera_image').strip(),
         camera_info=arg('camera_info').strip(),
         health=bringup.truthy(arg('health')),
     )
-    if options.start_mapping and not options.site:
-        raise bringup.BringupError('start_mapping:=true needs site:=<name>')
     data = bringup.merge_files(files)
-    data = bringup.with_sites_dir(data, stack.ROUTE_NODE, options.sites_dir)
+    data = bringup.with_sites_dir(data, stack.SITES_NODES, options.sites_dir)
     unknown = bringup.unknown_sections(data, stack.known_sections())
     if options.health:
         names = stack.node_names(options, sim=sim)
+        if not sim:
+            names += bringup.driver_nodes(arg('robot_driver'), options.robot_ns)
         data = bringup.with_expected_nodes(data, stack.HEALTH_NODE, names)
     options = replace(options, params_file=bringup.write_params(data))
     used = ', '.join(f for f in files if f)
     notes = [
         LogInfo(
             msg=f'{PACKAGE}: robot {profile.name} ({profile.kinematics}), ns /{options.robot_ns}, '
-            f'odometry {options.odometry}, site {options.site or "(from files)"}, '
+            f'lidar {"simulated" if sim else options.lidar}, '
+            f'site {options.site or "(from files)"}, '
             f'parameters {robot_params}, {used}'
         ),
         *[LogInfo(msg=f'WARNING no node is called "{n}" (typo?)') for n in unknown],
@@ -143,16 +148,21 @@ def include_action(include: stack.Include) -> GroupAction:
     return isolated([*remaps, launch])
 
 
-def driver_action(value: str, options: stack.Options) -> GroupAction | None:
+def driver_action(arg, options: stack.Options) -> GroupAction | None:
     """Return the robot driver launch with namespace:=<robot_ns>, or None when unset."""
-    driver = bringup.resolve_driver(value)
+    driver = bringup.resolve_driver(arg('robot_driver'))
     if driver is None:
         return None
     package, launch_file = driver
     path = share(package, 'launch', launch_file)
     if not os.path.isfile(path):
         raise bringup.BringupError(f'robot_driver: {path} does not exist')
-    args = stack.non_empty({'namespace': options.robot_ns, 'use_sim_time': options.use_sim_time})
+    values = {'namespace': options.robot_ns, 'use_sim_time': options.use_sim_time}
+    if package == bringup.DEFAULT_DRIVER:  # m20_bringup: this product's driver settings
+        params = bringup.existing_file('driver_params', arg('driver_params'))
+        values['driver_params'] = params or share(PACKAGE, 'config', 'm20_driver.yaml')
+        values['robot_ip'] = arg('robot_ip').strip()
+    args = stack.non_empty(values)
     source = AnyLaunchDescriptionSource(path)
     launch = IncludeLaunchDescription(source, launch_arguments=args.items())
     return isolated([launch])

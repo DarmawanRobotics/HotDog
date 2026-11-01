@@ -1,9 +1,9 @@
 """
-The whole robot in one launch: the Dharma stack with this product's robot profile.
+The whole robot in one launch: the M20 driver, its LiDARs and the Dharma stack.
 
-    ros2 launch hotdog robot.launch.py
-    ros2 launch hotdog robot.launch.py robot_driver:=my_robot_driver site:=lobby
-    ros2 launch hotdog robot.launch.py site:=lobby start_mapping:=true
+    ros2 launch hotdog robot.launch.py                        # M20 driver, LiDARs, the stack
+    ros2 launch hotdog robot.launch.py site:=gi_cawang robot_ip:=10.21.31.103
+    ros2 launch hotdog robot.launch.py robot_driver:= lidar:=external   # both run elsewhere
 
 Every package launch gets robot_params:=config/robot.yaml and one parameter file merged from
 config/stack.yaml and params_file (later wins), with the started nodes added to the health
@@ -23,11 +23,11 @@ def launch_setup(context):
     """Validate the arguments and build the robot driver and the stack."""
     arg = lu.performer(context)
     options, notes = lu.resolve(arg)
-    driver = lu.driver_action(arg('robot_driver'), options)
+    driver = lu.driver_action(arg, options)
     actions = [*notes] + ([driver] if driver is not None else [])
     return actions + [lu.include_action(i) for i in stack.compose(options)]
 
 
 def generate_launch_description():
-    """Declare the arguments (robot_ns, robot_driver, odometry, site and sites_dir: env too)."""
+    """Declare the arguments (robot_ns, robot_driver, lidar, site, sites_dir ...: env too)."""
     return LaunchDescription([*lu.declare(lu.ARGUMENTS), OpaqueFunction(function=launch_setup)])

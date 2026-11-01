@@ -81,11 +81,12 @@ jobs:
           done
           if [ -z "$keyrings" ]; then apt-key add /tmp/ros.key; fi
       - uses: actions/checkout@v4
-      - name: The stack from dharma.repos (same branch when it exists)
+      - name: The stack from dharma.repos (same branch when it exists), the robot from external.repos
         env:
           DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
         run: |
           apt-get update && apt-get install -y python3-vcstool git
+          vcs import --recursive src < external.repos
           auth="https://x-access-token:${DHARMA_TOKEN}@github.com/"
           git config --global url."$auth".insteadOf "https://github.com/"
           git config --global --add url."$auth".insteadOf "git@github.com:"
@@ -102,7 +103,7 @@ jobs:
           rosdep update --rosdistro "$ROS_DISTRO" --include-eol-distros
           # python3-loguru has no focal package: installed below
           rosdep install --from-paths src --ignore-src -y --rosdistro "$ROS_DISTRO" \
-            --skip-keys "livox_ros_driver2 fast_lio legkilo python3-loguru" > rosdep.log 2>&1 || {
+            --skip-keys "python3-loguru" > rosdep.log 2>&1 || {
             cat rosdep.log
             report "rosdep failed ($ROS_DISTRO)" rosdep.log
             exit 1
@@ -125,7 +126,7 @@ jobs:
         run: |
           source "/opt/ros/$ROS_DISTRO/setup.bash"
           source install/setup.bash
-          packages=$(colcon list --base-paths src --names-only | grep -v '^dharma_' | xargs)
+          packages=$(colcon list --base-paths src/hotdog* --names-only | xargs)
           status=0
           colcon test --packages-select $packages --executor sequential \
             --event-handlers console_cohesion+ > test.log 2>&1 || status=1
