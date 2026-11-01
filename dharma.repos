@@ -1,44 +1,45 @@
-# The Dharma stack: vcs import src < dharma.repos   (scripts/dev.sh import, scripts/setup.sh install repos)
-# A product pins released versions here (a tag or a commit with the release in a comment).
+# The Dharma stack HotDog runs on: vcs import src < dharma.repos (scripts/dev.sh import,
+# scripts/setup.sh install repos). Every repository is pinned to a commit; the comment names
+# the release or the day of the main commit (the same set Pashupati runs).
 repositories:
   dharma/dharma_utils:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_utils.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_utils.git
+    version: 8d0472301cea83651c176288df4bf344a87199eb # main 2026-10-30
   dharma/dharma_interfaces:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_interfaces.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_interfaces.git
+    version: 2ddbb00b0ba35f6486515bde22cfb59ffe86acee # main 2026-10-28
   dharma/dharma_odometry:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_odometry.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_odometry.git
+    version: 3789552b70f7f76b2625662c76f4a083a2df5d5b # main 2026-10-28
   dharma/dharma_localization:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_localization.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_localization.git
+    version: f9e1a9564cc7b3e3cda3235af10e80bcd55d54df # main 2026-10-28
   dharma/dharma_perception:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_perception.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_perception.git
+    version: 3e088d208aae317dbe56c7103a01569a0f8e1031 # main 2026-10-28
   dharma/dharma_mapping:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_mapping.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_mapping.git
+    version: 8e322baf88739c8e5adf4aae79385e791aa783c4 # main 2026-10-28
   # dharma_navigation and dharma_control
   dharma/dharma_navigation:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_navigation.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_navigation.git
+    version: 10067f3d5e9c4c1464ff0911714e0ed1f4a1ced7 # main 2026-10-30
   dharma/dharma_health:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_health.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_health.git
+    version: dc48db6257d1dd1bf635c6338f06d4abf97558a9 # main 2026-10-28
   dharma/dharma_rviz:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_rviz.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_rviz.git
+    version: 60370b3887b8fa70b6b31e7fc067d9727a1fae82 # main 2026-10-30
   dharma/dharma_sim:
     type: git
-    url: https://github.com/DarmawanRobotics/dharma_sim.git
-    version: main
+    url: git@github.com:DarmawanRobotics/dharma_sim.git
+    version: cbfb592b0a5a42888005d1aa722d66010fa5e2f6 # main 2026-10-28
