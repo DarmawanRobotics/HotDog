@@ -1,8 +1,8 @@
 {
-  "name": "dharma (humble)",
+  "name": "hotdog (foxy)",
   "dockerComposeFile": ["../compose.yaml"],
-  "service": "dev-humble",
-  "runServices": ["dev-humble"],
+  "service": "dev-foxy",
+  "runServices": ["dev-foxy"],
   "workspaceFolder": "/home/robot/ws",
   "remoteUser": "robot",
   "shutdownAction": "none",
@@ -16,7 +16,7 @@
         "redhat.vscode-yaml"
       ],
       "settings": {
-        "python.analysis.extraPaths": ["/opt/ros/humble/lib/python3.10/site-packages"],
+        "python.analysis.extraPaths": ["/opt/ros/foxy/lib/python3.8/site-packages"],
         "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" }
       }
     }

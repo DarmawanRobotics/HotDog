@@ -1,13 +1,13 @@
 # scripts/start_tmux.sh sim: the stack on dharma_sim (odometry external), one window per subsystem.
 session_name: sim
 environment:
-  ROBOT_NS: robot
+  ROBOT_NS: m20
   SITE: mall_loop
   SITES_DIR: /tmp/dharma_sim/sites
   SCENARIO: ""
 setup: >-
   source /opt/ros/${ROS_DISTRO}/setup.bash && source ${WS}/install/setup.bash &&
-  BRINGUP_CONFIG=$(ros2 pkg prefix robot_bringup)/share/robot_bringup/config &&
+  BRINGUP_CONFIG=$(ros2 pkg prefix hotdog)/share/hotdog/config &&
   BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/stack.yaml" &&
   SIM_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/sim.yaml"
 windows:
