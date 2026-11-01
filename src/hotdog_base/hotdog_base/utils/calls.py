@@ -1,4 +1,4 @@
-"""Blocking service calls from a worker thread while the executor spins elsewhere."""
+"""Blocking service calls from a worker thread while the executor spins on other threads."""
 
 from __future__ import annotations
 
