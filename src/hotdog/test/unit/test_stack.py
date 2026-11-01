@@ -29,8 +29,10 @@ def test_every_component_in_order():
         'dharma_navigation',
         'dharma_control',
         'dharma_health',
+        'hotdog_inspection',
     ]
     assert 'dharma_health' not in by_package(stack.compose(options(health=False)))
+    assert 'hotdog_inspection' not in by_package(stack.compose(options(inspection=False)))
     assert 'hotdog_base' not in by_package(stack.compose(options(), sim=True))
 
 
@@ -74,6 +76,16 @@ def test_sites():
     mapping = includes['dharma_mapping'].arguments
     assert (mapping['sites_dir'], mapping['site']) == ('/s', 'gi_cawang')
     assert includes['dharma_localization'].arguments['sites_dir'] == '/s'
+    assert includes['hotdog_inspection'].arguments['sites_dir'] == '/s'
+    assert 'inspection_node' in stack.SITES_NODES
+
+
+def test_pod_nodes():
+    names = stack.node_names(options())
+    assert {'/unipod/unipod_driver', '/unipod/main/camera', '/unipod/sub/camera'} <= set(names)
+    assert '/unipod/unipod_driver' not in stack.node_names(options(pod=False))
+    assert '/unipod/unipod_driver' not in stack.node_names(options(), sim=True)
+    assert '/inspection_node' in names
 
 
 def test_lidar_source():

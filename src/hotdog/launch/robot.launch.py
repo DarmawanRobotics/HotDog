@@ -1,5 +1,5 @@
 """
-The whole robot in one launch: the M20 driver, its LiDARs and the Dharma stack.
+The whole robot in one launch: the M20 driver, its LiDARs, the pod, the stack and inspection.
 
     ros2 launch hotdog robot.launch.py                        # M20 driver, LiDARs, the stack
     ros2 launch hotdog robot.launch.py site:=gi_cawang robot_ip:=10.21.31.103
@@ -23,8 +23,8 @@ def launch_setup(context):
     """Validate the arguments and build the robot driver and the stack."""
     arg = lu.performer(context)
     options, notes = lu.resolve(arg)
-    driver = lu.driver_action(arg, options)
-    actions = [*notes] + ([driver] if driver is not None else [])
+    devices = [lu.driver_action(arg, options), lu.pod_action(arg, options)]
+    actions = [*notes, *(d for d in devices if d is not None)]
     return actions + [lu.include_action(i) for i in stack.compose(options)]
 
 
