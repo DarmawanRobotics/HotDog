@@ -9,7 +9,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Finding.msg"
   "msg/InspectionReport.msg"
   "msg/InspectionStatus.msg"
+  "msg/PatrolStatus.msg"
   "srv/AddTarget.srv"
+  "srv/StartPatrol.srv"
   DEPENDENCIES std_msgs
 )
 

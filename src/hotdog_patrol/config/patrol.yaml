@@ -1,0 +1,21 @@
+# hotdog_patrol defaults: only what differs from the configuration dataclasses, plus notes.
+# Every parameter with its unit and range: `ros2 param describe /patrol_node <name>`.
+# {robot_ns} in a topic or service name is the driver namespace (robot_ns, from the bringup).
+patrol_node:
+  ros__parameters:
+    robot_ns: m20
+    sites_dir: ~/.hotdog/sites # routes: <site>/routes/<route>.csv
+    reports_dir: ~/.hotdog/reports # <day>/patrol_<time>.json
+    battery_topic: /{robot_ns}/battery
+    start:
+      min_battery: 0.3 # fraction of a full battery
+      reanchor: true # localization/assume_origin: a patrol starts at the dock (the map origin)
+      stand_up_service: /{robot_ns}/stand_up # m20_driver: stand, then RL control
+      max_health: 1 # start with health WARN, never with ERROR
+    finish:
+      dock_service: /{robot_ns}/charge_start # m20_driver: the M20 goes back to its dock
+    schedule:
+      enabled: false # live: ros2 param set /patrol_node schedule.enabled true
+      times: ["06:00", "14:00", "22:00"] # local time of this computer
+      route: "" # the route of the scheduled patrols; empty: the route loaded last
+      window_min: 10.0 # a time missed by more than this (robot busy or off) is skipped
