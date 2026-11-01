@@ -1,0 +1,7 @@
+# Start a patrol from the dock: checks, re-anchor (localization/assume_origin), stand up, load
+# the route, start the follower. Answers once the start sequence is underway (patrol/status).
+string route              # a route of the active site (routes/<route>.csv, the .csv optional);
+                          # empty: the route loaded last
+---
+bool success
+string message
