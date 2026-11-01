@@ -112,6 +112,14 @@ def test_return_ends_back_at_the_dock():
     assert s.summary(300.0)['returned'] is True
 
 
+def test_a_status_after_the_start_ends_the_route_without_an_active_one():
+    s = Session(route='gi/routes/r1.csv', site='gi', started=100.0, state=State.RUNNING)
+    s.ignore_before = 200.0  # the follower accepted the start then
+    assert not s.on_navigation(NAV_GOAL_REACHED, stamp=150.0)  # the last patrol's end
+    assert s.on_navigation(NAV_GOAL_REACHED, stamp=260.0)  # FOLLOWING coalesced away
+    assert s.state is State.DONE
+
+
 def test_operator_return_and_a_failed_way_back():
     s = running()
     assert s.begin_return(State.STOPPED, 'operator')
