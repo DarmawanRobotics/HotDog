@@ -1,2 +1,0 @@
-run,people,completed,time_sec,distance_m,stops,min_clearance_obstacles_m,min_clearance_walls_m,max_offset_m,collided,fields,final_x,final_y,final_state,final_message
-1,2.5:-3.0 4.5:0.6,True,82.75,27.1058,3,0.228766,0.390761,0.824016,False,clear:174 limited:4,-4.5167,-2.96358,8,at the goal

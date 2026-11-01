@@ -1,13 +1,13 @@
 # scripts/start_tmux.sh robot: the stack on the robot, one window per subsystem.
 session_name: robot
 environment:
-  ROBOT_NS: robot
+  ROBOT_NS: m20
   ODOMETRY: fast_lio
   SITE: ""
   SITES_DIR: ""
 setup: >-
   source /opt/ros/${ROS_DISTRO}/setup.bash && source ${WS}/install/setup.bash &&
-  BRINGUP_CONFIG=$(ros2 pkg prefix robot_bringup)/share/robot_bringup/config &&
+  BRINGUP_CONFIG=$(ros2 pkg prefix hotdog)/share/hotdog/config &&
   BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/stack.yaml"
 windows:
   - window_name: driver

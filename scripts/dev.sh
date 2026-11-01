@@ -5,7 +5,7 @@
 #
 #   up             import the stack if missing, build the image if needed, start the container
 #   shell          interactive shell inside (ROS and the workspace sourced)
-#   build [args]   colcon build inside (args go to colcon, e.g. --packages-up-to robot_bringup)
+#   build [args]   colcon build inside (args go to colcon, e.g. --packages-up-to hotdog)
 #   test [args]    colcon test + colcon test-result inside
 #   vnc            print the VNC / noVNC addresses (opens Screen Sharing on macOS)
 #   down           stop and remove the container (build/install/log volumes are kept)
@@ -14,7 +14,7 @@
 #                  existing checkouts to the listed versions too); plain git without vcstool
 #   doctor         check Docker, compose, CPU / memory, the architecture and GitHub access
 #
-# Env: DHARMA_DISTRO (default distro, humble), VNC_PASSWORD (dharma), VNC=0 (no desktop),
+# Env: DHARMA_DISTRO (default distro, foxy), VNC_PASSWORD (dharma), VNC=0 (no desktop),
 #      USER_UID / USER_GID (container user; default: yours on Linux, 1000 on macOS, where
 #      Docker Desktop maps file ownership of the bind mount itself)
 # Runs on the bash 3.2 of macOS: no empty "${array[@]}" under set -u, no bash 4 features.
@@ -26,7 +26,7 @@ usage() {
     sed -n '2,/^set -/p' "$0" | sed -e '$d' -e 's/^# \{0,1\}//'
 }
 
-DISTRO="${DHARMA_DISTRO:-humble}"
+DISTRO="${DHARMA_DISTRO:-foxy}"
 ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in

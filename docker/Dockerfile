@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 # Dharma dev container: ROS 2 (foxy | humble | jazzy), every rosdep key of src/, Livox-SDK2, the
 # lint tools, and an XFCE desktop over VNC / noVNC for RViz. Built by compose.yaml (scripts/dev.sh up).
-ARG ROS_DISTRO=humble
+ARG ROS_DISTRO=foxy
 
 # Only the package manifests, so the rosdep layer is rebuilt when dependencies change, not code.
 FROM alpine:3.20 AS manifests
