@@ -1,12 +1,16 @@
 <div align="center">
 
+<img src="docs/logo.png" width="112" alt="HotDog logo">
+
 # HotDog
 
 **Autonomous substation patrol robot on the Deep Robotics Lynx M20: teach and repeat on the
 robot's own odometry, thermal overheat analysis with the UniPod MT11 and partial discharge
-detection with the Hertzinno HZ-FA-371 at every stop point. Built on the Dharma stack.**
+detection with the Hertzinno HZ-FA-371 at every stop point, a watchdog that brings it home,
+reports in the browser and alerts on Telegram. Built on the Dharma stack.**
 
 [![CI](https://github.com/DarmawanRobotics/HotDog/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DarmawanRobotics/HotDog/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-manual%20%C2%B7%20technician%20%C2%B7%20SAT-1F6FB2)](docs/README.md)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Foxy-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/foxy/)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-E95420?logo=ubuntu&logoColor=white)](https://releases.ubuntu.com/20.04/)
 [![Dharma](https://img.shields.io/badge/stack-Dharma-4A78C2)](dharma.repos)
@@ -26,6 +30,13 @@ HotDog runs on **Dharma**, the shared autonomy stack, pinned in [dharma.repos](d
 with the M20's own odometry instead of a LiDAR-inertial estimator and without maps: routes are
 taught and repeated from the dock. The robot, its LiDARs and their drivers come from
 [external.repos](external.repos).
+
+**Guides:** the [User Manual](docs/HotDog-User-Manual.pdf) for operators, the
+[Technician Guide](docs/HotDog-Technician-Guide.pdf) for tuning and maintenance, the
+[Site Acceptance Test](docs/HotDog-Site-Acceptance-Test.pdf) for the handover. More in
+[docs](docs/README.md).
+
+![HotDog: the M20 with its LiDARs, pod and acoustic camera, the payload computer, the operator, reports and alerts](docs/manual/img/system.png)
 
 ## Packages
 

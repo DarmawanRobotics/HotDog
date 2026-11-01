@@ -60,8 +60,7 @@ teaching: the follower repeats the path as driven.
 Standing on the stop point, aim the pod at the equipment:
 
 ```bash
-ros2 service call /unipod/set_angle unipod_msgs/srv/SetGimbalAngle "{yaw: 35.0, pitch: -10.0}"
-ros2 service call /unipod/set_zoom unipod_msgs/srv/SetZoom "{zoom: 4.0}"
+hotdog aim 35 -10 4     # yaw right 35°, pitch down 10°, zoom 4×; watch the pod's stream
 hotdog teach target bay1_ds_clamps strips=3 acoustic
 ```
 
