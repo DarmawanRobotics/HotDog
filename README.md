@@ -22,9 +22,30 @@ busbar joints, bushings and cable terminations, every shift. HotDog walks such a
 own, stops in front of each piece of equipment, points the pod at it and checks it for
 overheating and partial discharge.
 
-`hotdog` brings the robot up: its profile (`config/robot.yaml`), the per-node overrides of the
-stack (`config/stack.yaml`) and one launch for everything. The Dharma packages come from
-[dharma.repos](dharma.repos).
+HotDog runs on **Dharma**, the shared autonomy stack, pinned in [dharma.repos](dharma.repos),
+with the M20's own odometry instead of a LiDAR-inertial estimator and without maps: routes are
+taught and repeated from the dock. The robot, its LiDARs and their drivers come from
+[external.repos](external.repos).
+
+## Packages
+
+| Package                                                                                                                                                    | Role                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`hotdog`](src/hotdog)                                                                                                                                     | the robot: profile, M20 driver settings, stack config, `robot.launch.py`, `sim.launch.py` |
+| [`hotdog_base`](src/hotdog_base)                                                                                                                           | both RoboSense Airy as one leveled cloud in `base_link`, the shared launch helpers        |
+| `dharma_*` ([dharma.repos](dharma.repos))                                                                                                                  | odometry monitor, localization, perception, routes, navigation, control mux, health       |
+| [m20_ros2](https://github.com/DarmawanRobotics/m20_ros2), [rslidar_sdk](https://github.com/RoboSense-LiDAR/rslidar_sdk) ([external.repos](external.repos)) | M20 driver and URDF, the Airy driver                                                      |
+
+<details>
+<summary><b>Hardware</b></summary>
+
+| Component  | Model                                          | Role                                                 |
+| ---------- | ---------------------------------------------- | ---------------------------------------------------- |
+| Robot base | Deep Robotics **Lynx M20** (wheel-legged)      | odometry, IMU, battery, motion (UDP protocol V1.3.0) |
+| LiDAR      | 2 × RoboSense **Airy** (front, rear), 96 beams | obstacle sectors, the 360° protective field          |
+| Compute    | payload computer, Ubuntu 20.04 + ROS 2 Foxy    | the whole stack                                      |
+
+</details>
 
 ## Quick start
 
