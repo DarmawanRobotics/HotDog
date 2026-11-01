@@ -30,7 +30,7 @@ ros2 launch hotdog sim.launch.py rviz:=true scenario:=person_crossing
 | Argument                       | Default (env)                              |                                                                                       |
 | ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------- |
 | `robot_params`                 | `config/robot.yaml`                        | robot profile file                                                                    |
-| `params_file`                  |                                            | parameters on top of `config/stack.yaml` (this robot's tuning)                        |
+| `params_file`                  | (`PARAMS_FILE`)                            | this robot and site on top of `config/stack.yaml` (e.g. `/etc/hotdog/site.yaml`)      |
 | `use_sim_time` / `log_level`   | / `info`                                   |                                                                                       |
 | `robot_ns`                     | `m20` (`ROBOT_NS`)                         | driver namespace: `/m20/cmd_vel`, `/m20/odom`, `/m20/imu`, `/m20/battery`             |
 | `robot_driver`                 | `m20_bringup` (`ROBOT_DRIVER`)             | `<package>[/<file>.launch.py]` started with `namespace:=<robot_ns>`; empty: elsewhere |
