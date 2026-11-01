@@ -1,10 +1,26 @@
-# Overrides for the simulator (sim.launch.py), on top of stack.yaml: dharma_sim publishes the
-# registered cloud as PointCloud2, /Odometry and /livox/imu, no Livox CustomMsg and no camera.
+# Overrides for the simulator (sim.launch.py), on top of stack.yaml: dharma_sim publishes a
+# FAST-LIO-like odometry (/Odometry, camera_init -> body at its Mid-360 IMU) and the registered
+# cloud, not the M20's odometry and Airy clouds. The odometry-only workflow stays the same.
+
+odometry_monitor_node:
+  ros__parameters:
+    odom_topic: /Odometry
+
+localization_node:
+  ros__parameters:
+    imu_frame: livox_imu_frame # dharma_sim's body frame
+    leveling:
+      enabled: true
+      imu_topic: /livox/imu
 
 lidar_sector_node:
   ros__parameters:
     input:
       type: pointcloud2
+      pointcloud_topic: /cloud_registered_body
+      frame: livox_frame
+    filter:
+      level_source: tf
 
 health_monitor_node:
   ros__parameters:
@@ -13,13 +29,3 @@ health_monitor_node:
     degradation:
       rules: ["sensor:/cloud_registered_body=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
     clock.enabled: false # the simulator runs on this computer's clock, chrony or not
-
-docking_node:
-  ros__parameters:
-    # dharma_sim's dock station (mall_loop: charging_dock on the west wall, contacts 0.75 m in
-    # front of it); its tag camera publishes base_link -> charging_dock on TF.
-    goal.distance: 0.75
-    hooks.sit: [/sim/sit]
-    hooks.charge: [/sim/charge/start]
-    hooks.stop_charge: [/sim/charge/stop]
-    hooks.stand: [/sim/stand]

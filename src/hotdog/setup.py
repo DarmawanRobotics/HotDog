@@ -21,6 +21,6 @@ setup(
     zip_safe=True,
     maintainer='Agus Darmawan',
     maintainer_email='darmawandeveloper@gmail.com',
-    description='Robot profile, stack overrides and one launch for the whole Dharma stack.',
+    description='HotDog bringup: M20 profile, driver settings, stack overrides, one launch.',
     license='Apache-2.0',
 )

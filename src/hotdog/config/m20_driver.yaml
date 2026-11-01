@@ -1,0 +1,19 @@
+# m20_driver as HotDog runs it (passed to m20_bringup as driver_params). Only what differs
+# from m20_driver/config/driver_params.yaml; every parameter is described there. One robot's
+# own calibration (full_scale.<gait>.*, angle_unit, sign fixes) goes into a copy of this file
+# named by DRIVER_PARAMS in /etc/hotdog/hotdog.env, never into the repository.
+/**:
+  ros__parameters:
+    robot_ip: 10.21.31.103 # the M20's UDP server on the wired payload network
+    # The robot's own odometry is HotDog's odometry: the driver publishes it as the LiDAR-
+    # inertial estimators of Dharma do (camera_init -> body on TF), dharma_localization bridges
+    # it into odom -> base_link (body is imu_link, the identity of base_link in the URDF).
+    odom_frame: camera_init
+    base_frame: body
+    publish_tf: true
+    # Patrol in the agile flat gait: the protocol document recommends it for autonomy.
+    stand_up_gait: flat_agile
+    max_vx: 1.0 # m/s, above robot.limits (0.8): the control mux limits first
+    max_vy: 0.5
+    max_wz: 1.0
+    angle_unit: auto # set rad or deg once the driver logged which one this robot reports

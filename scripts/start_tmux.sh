@@ -8,7 +8,7 @@
 # `when: VAR` runs only when VAR is set, otherwise it shows its `otherwise` hint. ${VAR} is
 # replaced from the environment. Each pane runs one package launch with the bringup's robot
 # profile and stack file; for exactly what the robot runs use `ros2 launch hotdog
-# robot.launch.py`. Env: ROBOT_NS, ROBOT_DRIVER, ODOMETRY, SITE, SITES_DIR, DETACH=1 (do not
+# robot.launch.py`. Env: ROBOT_NS, ROBOT_DRIVER, ROBOT_IP, SITE, SITES_DIR, DETACH=1 (do not
 # attach), ROS_DISTRO (the one in /opt/ros, else foxy).
 set -euo pipefail
 

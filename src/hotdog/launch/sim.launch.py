@@ -1,5 +1,5 @@
 """
-The same stack on the simulated robot of dharma_sim (odometry external), no hardware.
+The same stack on the simulated robot of dharma_sim, no M20, LiDARs or pod needed.
 
     ros2 launch hotdog sim.launch.py rviz:=true
     ros2 launch hotdog sim.launch.py scenario:=person_crossing
@@ -18,7 +18,8 @@ from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from hotdog import bringup, stack
 from hotdog import launch_utils as lu
 
-SIM_ARGUMENTS = [n for n in lu.ARGUMENTS if n not in ('robot_driver', 'odometry')]
+ROBOT_ONLY = ('robot_driver', 'robot_ip', 'driver_params', 'lidar')
+SIM_ARGUMENTS = [n for n in lu.ARGUMENTS if n not in ROBOT_ONLY]
 SIM_DEFAULTS = {'site': 'mall_loop', 'sites_dir': '/tmp/dharma_sim/sites', 'fiducials': 'false'}
 
 
@@ -27,11 +28,12 @@ def launch_setup(context):
     arg = lu.performer(context)
     options, notes = lu.resolve(arg, sim=True)
     sim = stack.sim_include(options, arg('world'), arg('scenario'), bringup.truthy(arg('rviz')))
-    return [*notes, *(lu.include_action(i) for i in [sim, *stack.compose(options)])]
+    includes = [sim, *stack.compose(options, sim=True)]
+    return [*notes, *(lu.include_action(i) for i in includes)]
 
 
 def generate_launch_description():
-    """Declare the arguments of the robot launch (no driver, odometry) and of the simulator."""
+    """Declare the arguments of the robot launch (no driver, no LiDARs) and the simulator."""
     return LaunchDescription(
         [
             *lu.declare(SIM_ARGUMENTS, SIM_DEFAULTS, env=False),
