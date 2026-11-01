@@ -72,6 +72,17 @@ def test_teaching(run):
     assert run('teach', 'target')[0] == 1
 
 
+def test_aim(run):
+    code, made = run('aim', '35', '-10', '4')
+    assert code == 0 and made == [
+        'ros2 service call /unipod/set_angle unipod_msgs/srv/SetGimbalAngle '
+        '{yaw: 35.0, pitch: -10.0}',
+        'ros2 service call /unipod/set_zoom unipod_msgs/srv/SetZoom {zoom: 4.0}',
+    ]
+    assert len(run('aim', '-20.5', '5')[1]) == 1  # no zoom given: the zoom stays
+    assert run('aim', '10')[0] == 1
+
+
 def test_parameters(run):
     assert run('ambient', '33') == (0, ['ros2 param set /inspection_node thermal.ambient_c 33.0'])
     assert run('ambient', 'warm') == (1, [])

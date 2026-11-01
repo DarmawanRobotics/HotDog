@@ -44,6 +44,11 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
 status` prints the robot at a glance; `scripts/env.sh` gives a shell the service's
   environment.
 - The service deletes ROS logs older than `LOG_DAYS` (7) at each start.
+- Guides as A5 PDFs built from Markdown (the Pashupati pipeline): the User Manual for operators,
+  the Technician Guide with the parameter reference, the Site Acceptance Test; the logo and
+  diagrams; CI builds them and warns when a committed PDF is older than its sources.
+- `hotdog aim <yaw> <pitch> [zoom]` points the pod while teaching targets; `ROBOT_PARAMS` in
+  the env file for a robot's own profile.
 - `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
   (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
 - Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and
