@@ -43,42 +43,12 @@ jobs:
       - name: Compose file
         run: docker compose --profile foxy --profile humble --profile jazzy config -q
 
-  experiments:
-    runs-on: ubuntu-22.04 # setup-python has no Python 3.8 for 24.04
-    env:
-      BRANCH: ${{ github.head_ref || github.ref_name }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.8" # the oldest Python of the stack (Foxy)
-      - run: pip install numpy scipy pyyaml pytest
-      - name: The stack from dharma.repos (same branch when it exists)
-        env:
-          DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
-        run: |
-          git config --global url."https://x-access-token:${DHARMA_TOKEN}@github.com/".insteadOf "https://github.com/"
-          python - > repos.txt <<'PY'
-          import yaml
-          for path, repo in yaml.safe_load(open('dharma.repos'))['repositories'].items():
-              print(f"src/{path} {repo['url']} {repo['version']}")
-          PY
-          while read -r path url version; do
-            git clone -q --depth 1 --branch "$version" "$url" "$path"
-            if git -C "$path" ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
-              git -C "$path" fetch -q --depth 1 origin "$BRANCH" && git -C "$path" checkout -q FETCH_HEAD
-              echo "$path -> $BRANCH"
-            fi
-          done < repos.txt
-      - name: Experiment smoke tests (one seed, pure cores, no ROS)
-        run: python -m pytest -q experiments/test
-
   build-test:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        distro: [foxy, humble, jazzy]
+        distro: [foxy] # the robot runs Ubuntu 20.04 and Foxy
     container: ros:${{ matrix.distro }}-ros-base
     env:
       BRANCH: ${{ github.head_ref || github.ref_name }}

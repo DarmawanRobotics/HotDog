@@ -1,7 +1,7 @@
 # Dev containers, one per ROS distro: scripts/dev.sh up --distro foxy|humble|jazzy
 # (or docker compose --profile jazzy up -d --build). Build artefacts live in per-distro volumes:
 # the build/ of one distro must never mix with another's.
-name: dharma
+name: hotdog
 
 x-dev: &dev
   init: true
@@ -28,9 +28,9 @@ services:
         ROS_DISTRO: foxy
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
-    image: dharma-dev:foxy
-    container_name: dharma-dev-foxy
-    hostname: dharma-foxy
+    image: hotdog-dev:foxy
+    container_name: hotdog-dev-foxy
+    hostname: hotdog-foxy
     ports:
       - "127.0.0.1:5903:5901" # VNC (vnc://localhost:5903)
       - "127.0.0.1:6082:6080" # noVNC (http://localhost:6082/vnc.html)
@@ -49,9 +49,9 @@ services:
         ROS_DISTRO: humble
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
-    image: dharma-dev:humble
-    container_name: dharma-dev-humble
-    hostname: dharma-humble
+    image: hotdog-dev:humble
+    container_name: hotdog-dev-humble
+    hostname: hotdog-humble
     ports:
       - "127.0.0.1:5901:5901" # VNC (vnc://localhost:5901)
       - "127.0.0.1:6080:6080" # noVNC (http://localhost:6080/vnc.html)
@@ -70,9 +70,9 @@ services:
         ROS_DISTRO: jazzy
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
-    image: dharma-dev:jazzy
-    container_name: dharma-dev-jazzy
-    hostname: dharma-jazzy
+    image: hotdog-dev:jazzy
+    container_name: hotdog-dev-jazzy
+    hostname: hotdog-jazzy
     ports:
       - "127.0.0.1:5902:5901" # VNC (vnc://localhost:5902)
       - "127.0.0.1:6081:6080" # noVNC (http://localhost:6081/vnc.html)
