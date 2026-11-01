@@ -1,9 +1,57 @@
-# Per-node overrides of the Dharma package defaults for this robot (only what differs).
-# Merged with params_file:= (later wins) and passed to every package launch. Each package's
-# README lists its parameters; `ros2 param describe /<node> <name>` shows units and ranges.
-# A section that matches no started node is reported at launch (typo).
-# Backing up after a stop point (path_follower_node inspection.reverse_distance_m > 0) needs
-# the avoidance to see behind: lidar_sector_node front.fov_deg: 360.0.
+# Per-node overrides of the Dharma package defaults for HotDog on the Lynx M20 (only what
+# differs). Merged with params_file:= (later wins) and passed to every package launch. Each
+# package's README lists its parameters; `ros2 param describe /<node> <name>` shows units and
+# ranges. A section that matches no started node is reported at launch (typo).
+#
+# Odometry only: the M20's own dead reckoning (m20_driver, camera_init -> body) is the
+# odometry, nothing is mapped, and the map frame is where the odometry started (the dock).
+
+odometry_monitor_node:
+  ros__parameters:
+    odom_topic: /m20/odom # the driver's odometry is the estimator
+    imu_topic: "" # planar odometry: no tilt check against the IMU
+    leg_odom_topic: "" # nothing independent to compare it with
+    stale_sec: 0.5 # the motion report comes at 10 Hz
+
+localization_node:
+  ros__parameters:
+    imu_frame: imu_link # the driver's body frame in the URDF (identity of base_link)
+    assume_start_origin: true # the odometry start is the map origin: start at the dock
+    leveling:
+      enabled: false # the odometry is planar already
+    estimator:
+      # No corrections without tags: the state stays LOCALIZED and sigma only reports the
+      # drift. Re-anchor at the dock before every patrol (localization/assume_origin).
+      sigma_xy_per_sqrt_m: 0.05
+      max_sigma_xy: 100.0
+      max_sigma_yaw_deg: 180.0
+    tag:
+      auto_localize: false
+      auto_correct: false
+
+lidar_sector_node:
+  ros__parameters:
+    input:
+      type: pointcloud2
+      pointcloud_topic: /lidar/points # hotdog_base cloud_merger_node, front and rear Airy
+      frame: base_link
+      timeout_sec: 0.5
+    front:
+      fov_deg: 360.0 # the rear Airy sees behind: avoidance while backing up too
+      range_max: 8.0
+    filter:
+      level_source: none # cloud_merger_node levels the cloud with the IMU
+      height_min: 0.15 # m above the ground: gravel, kerbs and cable trench covers stay out
+      height_max: 1.60
+    blind:
+      min_points: 200
+
+path_follower_node:
+  ros__parameters:
+    controller: holonomic
+    avoidance_mode: path_shift
+    speed.cruise: 0.5 # m/s
+    inspection.reverse_distance_m: 0.0
 
 control_mux_node:
   ros__parameters:
@@ -13,22 +61,19 @@ control_mux_node:
 health_monitor_node:
   ros__parameters:
     sensors:
-      topics: ["/livox/lidar:5.0", "/Odometry:8.0"] # "topic:min_hz[:max_age_sec]"
+      # "topic:min_hz[:max_age_sec]"
+      topics:
+        [
+          "/lidar/points:5.0",
+          "/lidar/front/points:5.0",
+          "/lidar/rear/points:5.0",
+          "/m20/odom:5.0",
+          "/m20/imu:5.0",
+        ]
     nodes:
-      # The bringup adds every node it starts; list the robot driver's nodes here.
+      # The bringup adds every node it starts, and the M20 driver's when it starts it.
       expected: [""]
     degradation:
-      rules: ["sensor:/livox/lidar=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
+      rules: ["sensor:/lidar/points=0.5", "sensor:/m20/odom=0.5", "tf:*=0.5"]
     # the offset of this computer's clock to its time source (scripts/setup.sh install timesync)
     clock.enabled: true
-
-docking_node:
-  ros__parameters:
-    # Docking onto the charger (docking/dock, docking/undock): the dock tag on TF from the
-    # fiducial detector, the docked pose in front of it and the driver's Trigger services.
-    tag.frame: charging_dock # apriltag tag 4 (dharma_perception), or the ArUco detector's frame
-    goal.distance: 0.75 # m, base_link to the tag when docked (measure it on the dock)
-    hooks.sit: [""] # e.g. /robot/sit
-    hooks.charge: [""] # e.g. /robot/charge/start
-    hooks.stop_charge: [""] # e.g. /robot/charge/stop
-    hooks.stand: [""] # e.g. /robot/stand

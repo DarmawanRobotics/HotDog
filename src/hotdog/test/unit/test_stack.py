@@ -23,6 +23,7 @@ def test_every_component_in_order():
     assert packages == [
         'dharma_odometry',
         'dharma_localization',
+        'hotdog_base',
         'dharma_perception',
         'dharma_mapping',
         'dharma_navigation',
@@ -30,6 +31,7 @@ def test_every_component_in_order():
         'dharma_health',
     ]
     assert 'dharma_health' not in by_package(stack.compose(options(health=False)))
+    assert 'hotdog_base' not in by_package(stack.compose(options(), sim=True))
 
 
 def test_contract_arguments_reach_every_launch():
@@ -49,44 +51,52 @@ def test_empty_arguments_are_never_passed():
     mapping = by_package(stack.compose(options()))['dharma_mapping'].arguments
     assert 'site' not in mapping
     assert 'sites_dir' not in mapping
-    assert 'start_mapping' not in mapping  # the parameter files decide
+    assert 'start_mapping' not in mapping  # HotDog never maps
+
+
+def test_odometry_is_the_robots_own():
+    includes = by_package(stack.compose(options()))
+    assert includes['dharma_odometry'].arguments['method'] == 'external'
+    assert 'leg_odom_topic' not in includes['dharma_odometry'].arguments
 
 
 def test_robot_namespace_topics():
-    includes = by_package(stack.compose(options(robot_ns='lite3')))
-    assert includes['dharma_odometry'].arguments['leg_odom_topic'] == '/lite3/odom'
+    includes = by_package(stack.compose(options(robot_ns='m20b')))
     nav = includes['dharma_navigation'].arguments
-    assert (nav['battery_topic'], nav['odom_topic']) == ('/lite3/battery', '/lite3/odom')
+    assert (nav['battery_topic'], nav['odom_topic']) == ('/m20b/battery', '/m20b/odom')
     # the control mux is the only publisher of the driver's cmd_vel
-    assert includes['dharma_control'].arguments['cmd_vel_topic'] == '/lite3/cmd_vel'
+    assert includes['dharma_control'].arguments['cmd_vel_topic'] == '/m20b/cmd_vel'
     assert all(not i.remappings for i in includes.values())
 
 
-def test_mapping_site_and_odometry():
-    o = options(odometry='leg_kilo', site='lobby', sites_dir='/s', start_mapping=True)
-    includes = by_package(stack.compose(o))
-    odometry = includes['dharma_odometry'].arguments
-    assert (odometry['method'], odometry['save_map']) == ('leg_kilo', 'true')
-    assert odometry['site_config'] == '/p.yaml'  # FAST-LIO overrides from the stack file
+def test_sites():
+    includes = by_package(stack.compose(options(site='gi_cawang', sites_dir='/s')))
     mapping = includes['dharma_mapping'].arguments
-    assert (mapping['sites_dir'], mapping['site'], mapping['start_mapping']) == (
-        '/s',
-        'lobby',
-        'true',
-    )
+    assert (mapping['sites_dir'], mapping['site']) == ('/s', 'gi_cawang')
     assert includes['dharma_localization'].arguments['sites_dir'] == '/s'
 
 
+def test_lidar_source():
+    includes = by_package(stack.compose(options(lidar='external')))
+    assert includes['hotdog_base'].arguments['lidar'] == 'external'
+    assert '/rslidar_sdk_node' in stack.node_names(options())
+    assert '/rslidar_sdk_node' not in stack.node_names(options(lidar='external'))
+    assert '/cloud_merger_node' in stack.node_names(options())
+
+
 def test_perception_fiducials():
-    perception = by_package(stack.compose(options(fiducials=False, camera_image='/c/img')))
+    perception = by_package(stack.compose(options(fiducials=True, camera_image='/c/img')))
     args = perception['dharma_perception'].arguments
-    assert args['fiducials'] == 'false'
+    assert args['fiducials'] == 'true'
     assert args['camera_image'] == '/c/img'
     assert 'camera_info' not in args
+    assert by_package(stack.compose(options()))['dharma_perception'].arguments['fiducials'] == (
+        'false'
+    )
 
 
 def test_perception_aruco_detector():
-    o = options(fiducials_detector='aruco')
+    o = options(fiducials=True, fiducials_detector='aruco')
     perception = by_package(stack.compose(o))['dharma_perception'].arguments
     assert perception['fiducials_detector'] == 'aruco'
     names = stack.node_names(o)
@@ -96,7 +106,7 @@ def test_perception_aruco_detector():
 
 
 def test_sim_include():
-    o = options(robot_ns='robot', site='mall_loop', sites_dir='/tmp/s', odometry='external')
+    o = options(robot_ns='m20', site='mall_loop', sites_dir='/tmp/s')
     sim = stack.sim_include(o, world='', scenario='drift', rviz=True)
     assert (sim.package, sim.launch_file) == ('dharma_sim', 'sim.launch.py')
     assert CONTRACT - {'use_sim_time'} <= set(sim.arguments)
@@ -108,14 +118,11 @@ def test_sim_include():
 def test_node_names():
     names = stack.node_names(options())
     assert '/health_monitor_node' in names
-    assert '/fastlio_mapping_node' in names
-    assert {'/apriltag', '/apriltag_throttle'} <= set(names)
+    assert '/apriltag' not in names
     assert names == sorted(names)
-    external = stack.node_names(options(odometry='external', fiducials=False), sim=True)
-    assert '/fastlio_mapping_node' not in external
-    assert '/apriltag' not in external
-    assert '/sim_robot_node' in external
-    assert '/odometry_gate' not in external  # it exits once the IMU is still
+    sim = stack.node_names(options(), sim=True)
+    assert '/sim_robot_node' in sim
+    assert not {'/cloud_merger_node', '/rslidar_sdk_node'} & set(sim)
 
 
 def test_shipped_files_only_configure_known_nodes():
