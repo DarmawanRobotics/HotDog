@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-# Dharma dev container: ROS 2 (foxy | humble | jazzy), every rosdep key of src/, Livox-SDK2, the
+# HotDog dev container: ROS 2 (foxy by default), every rosdep key of src/, the
 # lint tools, and an XFCE desktop over VNC / noVNC for RViz. Built by compose.yaml (scripts/dev.sh up).
 ARG ROS_DISTRO=foxy
 
@@ -62,16 +62,12 @@ RUN case "${ROS_DISTRO}" in \
 RUN pipx install --python "$(command -v python3.9 || command -v python3)" "pre-commit>=3.5" \
     && pipx install "ruff==0.16.9"
 
-# Sensor SDK through the same installer the robot uses
-COPY scripts/setup.sh /opt/dharma/setup.sh
-RUN /opt/dharma/setup.sh install livox
-
 # ROS dependencies of every package in src/ (vendor packages that are not checked out: skipped)
 COPY --from=manifests /src /tmp/src
 RUN apt-get update \
     && rosdep update --rosdistro "${ROS_DISTRO}" --include-eol-distros \
     && rosdep install --from-paths /tmp/src --ignore-src -r -y --rosdistro "${ROS_DISTRO}" \
-        --skip-keys "livox_ros_driver2 fast_lio legkilo python3-loguru" \
+        --skip-keys "python3-loguru" \
     && rm -rf /var/lib/apt/lists/* /tmp/src
 
 # User with the host's uid (the noble images already have uid 1000: ubuntu). A gid the image

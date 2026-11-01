@@ -2,7 +2,8 @@
 session_name: robot
 environment:
   ROBOT_NS: m20
-  ODOMETRY: fast_lio
+  ROBOT_DRIVER: m20_bringup
+  ROBOT_IP: 10.21.31.103
   SITE: ""
   SITES_DIR: ""
 setup: >-
@@ -13,20 +14,23 @@ windows:
   - window_name: driver
     panes:
       - when: ROBOT_DRIVER
-        shell_command: ros2 launch ${ROBOT_DRIVER} namespace:=${ROBOT_NS}
+        shell_command: >-
+          ros2 launch ${ROBOT_DRIVER} bringup.launch.py namespace:=${ROBOT_NS}
+          robot_ip:=${ROBOT_IP} driver_params:=$BRINGUP_CONFIG/m20_driver.yaml
         otherwise: "ROBOT_DRIVER unset: start the robot driver here (namespace ${ROBOT_NS})"
+  - window_name: lidar
+    panes:
+      - shell_command: ros2 launch hotdog_base base.launch.py $BRINGUP_ARGS
   - window_name: odometry
     panes:
-      - shell_command: >-
-          ros2 launch dharma_odometry odometry.launch.py $BRINGUP_ARGS method:=${ODOMETRY}
-          leg_odom_topic:=/${ROBOT_NS}/odom
+      - shell_command: ros2 launch dharma_odometry odometry.launch.py $BRINGUP_ARGS method:=external
   - window_name: localization
     panes:
       - shell_command: ros2 launch dharma_localization localization.launch.py $BRINGUP_ARGS
   - window_name: perception
     panes:
       - shell_command: ros2 launch dharma_perception perception.launch.py $BRINGUP_ARGS
-  - window_name: mapping
+  - window_name: routes
     panes:
       - shell_command: ros2 launch dharma_mapping mapping.launch.py $BRINGUP_ARGS site:=${SITE}
   - window_name: navigation
@@ -45,5 +49,5 @@ windows:
   - window_name: shell
     layout: even-horizontal
     panes:
-      - shell_command: "# ros2 service call /localization/start std_srvs/srv/Trigger"
+      - shell_command: "# ros2 service call /localization/assume_origin std_srvs/srv/Trigger"
       - shell_command: watch -n 2 ros2 node list
