@@ -23,3 +23,7 @@ All notable changes to HotDog. Format: [Keep a Changelog](https://keepachangelog
 - `hotdog_patrol`: `patrol/start` from the dock (checks, `localization/assume_origin`, stand-up,
   AUTO, route, follower), the patrol followed to the end of its route, a summary of the
   inspections on the way, back to the dock with `charge_start`, patrols at fixed local times.
+- `PARAMS_FILE` in `/etc/hotdog/hotdog.env`: this robot's and site's parameters
+  (`/etc/hotdog/site.yaml`) on top of `config/stack.yaml`, so a schedule survives a restart.
+- Guides: [commissioning](docs/commissioning.md) of a new M20 or substation and
+  [operations](docs/operations.md) for every shift.

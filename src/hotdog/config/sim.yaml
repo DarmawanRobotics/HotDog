@@ -29,3 +29,10 @@ health_monitor_node:
     degradation:
       rules: ["sensor:/cloud_registered_body=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
     clock.enabled: false # the simulator runs on this computer's clock, chrony or not
+
+patrol_node:
+  ros__parameters:
+    start:
+      stand_up_service: "" # dharma_sim stands already
+    finish:
+      dock_service: ""

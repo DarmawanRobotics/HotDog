@@ -28,7 +28,7 @@ PACKAGE = 'hotdog'
 # name -> (environment variable or None, default, description)
 ARGUMENTS = {
     'robot_params': (None, '', 'robot profile (robot.* parameters); empty: config/robot.yaml'),
-    'params_file': (None, '', 'parameters on top of config/stack.yaml; empty: none'),
+    'params_file': ('PARAMS_FILE', '', 'this robot and site on top of config/stack.yaml'),
     'use_sim_time': (None, '', 'true | false; empty: from the parameter files'),
     'log_level': (None, 'info', 'debug, info, warn, error'),
     'robot_ns': ('ROBOT_NS', bringup.DEFAULT_ROBOT_NS, 'driver namespace (/<ns>/cmd_vel, odom)'),
