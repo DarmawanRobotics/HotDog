@@ -4,23 +4,23 @@
 #   scripts/setup.sh                       # same as: check
 #   scripts/setup.sh check                 # status of every component
 #   scripts/setup.sh install               # install the default components that are missing
-#   scripts/setup.sh install livox build   # only these
+#   scripts/setup.sh install repos build   # only these
 #   scripts/setup.sh install all           # every component, service included
 #
-# Components: ros tools repos livox rosdep build service
+# Components: ros tools repos rosdep build service timesync ptp
 #   ros      ROS 2 $ROS_DISTRO from packages.ros.org (ros-base)
 #   tools    colcon, rosdep, vcstool, git, cmake, tmux, the Python packages of the stack
-#   repos    the stack (dharma.repos) and the external packages (external.repos) under src/
-#   livox    Livox-SDK2 (for livox_ros_driver2)
-#   rosdep   the system dependencies of every package under src/
+#   repos    the stack (dharma.repos) and the robot packages (external.repos: m20_ros2,
+#            rslidar_sdk) under src/
+#   rosdep   the system dependencies of every package under src/ (libpcap, yaml-cpp, ...)
 #   build    colcon build of the workspace
 #   service  a systemd unit running `ros2 launch hotdog robot.launch.py` at boot
 #   timesync chrony: the system clock follows TIME_SERVERS and serves the robot's computers in
 #            TIME_ALLOW (scripts/timesync.sh)
 #   ptp      the LiDAR (LIDAR_IP or PTP_IFACE) stamps with this computer's clock over PTP
 # Env: ROS_DISTRO (the one in /opt/ros, else the one of the Ubuntu release: 20.04 foxy,
-#      22.04 humble, 24.04 jazzy), LIVOX_SDK_REF (master), BUILD_WORKERS / BUILD_JOBS (lower them
-#      when the build runs out of memory), SERVICE_NAME (hotdog), FORCE=1 (reinstall anyway),
+#      22.04 humble, 24.04 jazzy), BUILD_WORKERS / BUILD_JOBS (lower them when the build runs
+#      out of memory), SERVICE_NAME (hotdog), FORCE=1 (reinstall anyway),
 #      TIME_SERVERS, TIME_ALLOW, LIDAR_IP, PTP_IFACE, PTP_TIMESTAMPING (see scripts/timesync.sh)
 set -euo pipefail
 
@@ -39,18 +39,16 @@ default_distro() {
     esac
 }
 ROS_DISTRO="${ROS_DISTRO:-$(default_distro)}"
-LIVOX_SDK_REPO="${LIVOX_SDK_REPO:-https://github.com/Livox-SDK/Livox-SDK2.git}"
-LIVOX_SDK_REF="${LIVOX_SDK_REF:-master}"
 BUILD_WORKERS="${BUILD_WORKERS:-}"
 BUILD_JOBS="${BUILD_JOBS:-}"
 BRINGUP_PACKAGE=hotdog
 SERVICE_NAME="${SERVICE_NAME:-$BRINGUP_PACKAGE}"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
-ENV_FILE="/etc/$SERVICE_NAME/robot.env"
+ENV_FILE="/etc/$SERVICE_NAME/$SERVICE_NAME.env"
 BUILD_STAMP="$ROOT/install/.build_commit"
 
-ALL=(ros tools repos livox rosdep build service timesync ptp)
-DEFAULT_INSTALL=(tools repos livox rosdep build)
+ALL=(ros tools repos rosdep build service timesync ptp)
+DEFAULT_INSTALL=(tools repos rosdep build)
 
 SUDO=$([[ "$(id -u)" -eq 0 ]] && echo "" || echo "sudo")
 IN_DOCKER=$([[ -f /.dockerenv ]] && echo 1 || echo 0)
@@ -132,25 +130,6 @@ install_repos() {
     vcs import --recursive --skip-existing "$ROOT/src" < "$ROOT/external.repos"
 }
 
-check_livox() {
-    [[ -f /usr/local/lib/liblivox_lidar_sdk_shared.so ]] \
-        && echo "/usr/local/lib/liblivox_lidar_sdk_shared.so" && return 0
-    echo "Livox-SDK2 not installed"
-    return 1
-}
-install_livox() {
-    local tmp
-    tmp=$(mktemp -d)
-    git clone --depth 1 --branch "$LIVOX_SDK_REF" "$LIVOX_SDK_REPO" "$tmp"
-    # GCC 13 (Ubuntu 24.04) no longer includes <cstdint> transitively; the SDK relies on it
-    cmake -S "$tmp" -B "$tmp/build" -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_FLAGS="-include cstdint"
-    cmake --build "$tmp/build" -j"$(nproc)"
-    $SUDO cmake --install "$tmp/build"
-    $SUDO ldconfig
-    rm -rf "$tmp"
-}
-
 # python3-loguru has no rosdep rule on Ubuntu 20.04: the tools component installs loguru.
 ROSDEP_SKIP=(--skip-keys python3-loguru)
 check_rosdep() {
@@ -189,18 +168,19 @@ install_build() {
     git -C "$ROOT" rev-parse --short HEAD > "$BUILD_STAMP" 2> /dev/null || echo unknown > "$BUILD_STAMP"
 }
 
-# The launch arguments robot_ns, robot_driver, odometry, site and sites_dir default to these.
+# The launch arguments of the same names default to these (robot.launch.py).
 env_template() {
     printf '%s\n' \
         "# $SERVICE_NAME.service environment (also read by bash): no comments after values" \
         "ROS_DISTRO=$ROS_DISTRO" 'ROS_DOMAIN_ID=0' 'RMW_IMPLEMENTATION=rmw_fastrtps_cpp' \
-        'ROBOT_NS=m20' 'ROBOT_DRIVER=' 'ODOMETRY=fast_lio' 'SITE=' "SITES_DIR=$HOME/sites" \
+        'ROBOT_NS=m20' 'ROBOT_DRIVER=m20_bringup' 'ROBOT_IP=10.21.31.103' 'DRIVER_PARAMS=' \
+        'LIDAR=rslidar' 'SITE=' "SITES_DIR=$HOME/.hotdog/sites" \
         'OPENBLAS_NUM_THREADS=1' 'OMP_NUM_THREADS=1'
 }
 service_unit() {
     cat << EOF
 [Unit]
-Description=Robot stack ($BRINGUP_PACKAGE)
+Description=HotDog substation patrol robot ($BRINGUP_PACKAGE)
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -236,7 +216,7 @@ check_service() {
 install_service() {
     if [[ ! -f "$ENV_FILE" ]]; then
         env_template | $SUDO install -D -m 640 -g "$(id -gn)" /dev/stdin "$ENV_FILE"
-        log "created $ENV_FILE: set ROBOT_DRIVER, ROBOT_NS and SITE"
+        log "created $ENV_FILE: set ROBOT_IP, SITE and DRIVER_PARAMS (this robot's calibration)"
     fi
     service_unit | $SUDO tee "$SERVICE_FILE" > /dev/null
     $SUDO systemctl daemon-reload
