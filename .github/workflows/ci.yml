@@ -136,9 +136,10 @@ jobs:
         run: |
           apt-get update
           rosdep update --rosdistro "$ROS_DISTRO" --include-eol-distros
-          # python3-loguru has no focal package: installed below
+          # python3-loguru has no focal package: installed below. HotDog runs on the M20's own
+          # odometry: dharma_odometry's FAST-LIO / legKILO (and their Livox driver) are not used.
           rosdep install --from-paths src --ignore-src -y --rosdistro "$ROS_DISTRO" \
-            --skip-keys "python3-loguru" > rosdep.log 2>&1 || {
+            --skip-keys "python3-loguru fast_lio legkilo livox_ros_driver2" > rosdep.log 2>&1 || {
             cat rosdep.log
             report "rosdep failed ($ROS_DISTRO)" rosdep.log
             exit 1

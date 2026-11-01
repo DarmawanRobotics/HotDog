@@ -135,7 +135,9 @@ install_repos() {
 }
 
 # python3-loguru has no rosdep rule on Ubuntu 20.04: the tools component installs loguru.
-ROSDEP_SKIP=(--skip-keys python3-loguru)
+# HotDog runs on the M20's own odometry: dharma_odometry's LiDAR-inertial estimators (FAST-LIO,
+# legKILO and the Livox driver they bring) are never started, so they are not installed.
+ROSDEP_SKIP=(--skip-keys "python3-loguru fast_lio legkilo livox_ros_driver2")
 check_rosdep() {
     check_ros > /dev/null || { echo "needs ROS"; return 1; }
     [[ -d /etc/ros/rosdep/sources.list.d ]] || { echo "rosdep not initialised"; return 1; }
