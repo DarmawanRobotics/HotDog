@@ -1,0 +1,20 @@
+# hotdog_base defaults. Every parameter with its unit and range:
+# `ros2 param describe /cloud_merger_node <name>`. The footprint (self filter) and base_height
+# (floor) come from the robot profile (robot_params:=robot.yaml).
+cloud_merger_node:
+  ros__parameters:
+    # rslidar_sdk publishes one cloud per Airy (config/rslidar.yaml); the first input triggers
+    # the merged cloud, which perception (lidar_sector_node) and health read.
+    inputs: [/lidar/front/points, /lidar/rear/points]
+    # roll, pitch, yaw (deg) of each input on top of its URDF frame. The M20 model gives the
+    # rear LiDAR no rotation, but the rear Airy looks backwards: check both against their data
+    # (RViz, the robot in front of a wall) before the robot moves on its own.
+    input_rpy_deg: [0.0, 0.0, 0.0, 0.0, 0.0, 180.0]
+    output_topic: /lidar/points
+    require_all: true # a stale side stops the output: perception goes BLOCKED, not half blind
+    max_age_sec: 0.3
+    range_max: 30.0 # m from base_link
+    height_max: 2.5 # m above the floor
+    self_height: 0.6 # m above base_link: the pod and the payload rails
+    level_source: imu # the M20's odometry is planar: level the cloud here, not from TF
+    imu_topic: /m20/imu
