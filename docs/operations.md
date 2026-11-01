@@ -119,6 +119,14 @@ Copy a day off the robot with its images: `scp -r robot@<ip>:~/.hotdog/reports/<
 Days older than a year, and the oldest days when less than 5 GB is free, are deleted on the
 robot ([hotdog_reports](../src/hotdog_reports/README.md#retention)).
 
+## Alerts
+
+The crew's Telegram group gets every **warning** and **critical** finding with its thermal
+image or sound map, every patrol that failed or came back on its own, every finished patrol
+with a link to its report, and a robot whose health is ERROR. Act on the last line of a
+finding alert; a repeated finding stays quiet for 12 h unless it gets worse. Without uplink
+the alerts wait on the robot and arrive when the link is back.
+
 ## Emergency stop
 
 - **Hard:** the M20's own e-stop or remote; the driver holds `cmd_vel` until `stand_up`.
