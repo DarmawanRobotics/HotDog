@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+import math
 
 
 class State(IntEnum):
@@ -21,6 +22,7 @@ class State(IntEnum):
     DONE = 3
     FAILED = 4
     STOPPED = 5
+    RETURNING = 6
 
 
 # dharma_interfaces/NavigationStatus
@@ -54,38 +56,62 @@ class Session:
     worst: int = 0
     report: str = ''
     active: bool = False  # the follower was seen working on the route
+    returned: bool = False  # ended by walking back to the dock
+    final: State = State.FAILED  # the state a return ends in
+    reason: str = ''  # why the patrol returns
+    inspections: list = field(default_factory=list)  # report directories of the points
+    ignore_before: float = 0.0  # s, follower statuses stamped earlier are not this route's
 
     @property
     def busy(self) -> bool:
-        """Return True while starting or running."""
-        return self.state in (State.STARTING, State.RUNNING)
+        """Return True while starting, running or returning."""
+        return self.state in (State.STARTING, State.RUNNING, State.RETURNING)
 
-    def on_navigation(self, nav_state: int, message: str = '') -> bool:
+    def on_navigation(self, nav_state: int, message: str = '', stamp: float = 0.0) -> bool:
         """Follow the follower; return True when the patrol just ended."""
-        if self.state is not State.RUNNING:
+        if self.state not in (State.RUNNING, State.RETURNING) or stamp < self.ignore_before:
             return False
         if nav_state in NAV_ACTIVE:
             self.active = True
             return False
-        ends = {
-            NAV_GOAL_REACHED: (State.DONE, 'the end of the route was reached'),
-            NAV_FAILED: (State.FAILED, f'the follower failed: {message}'),
-            NAV_INACTIVE: (State.STOPPED, 'the follower was stopped'),
-        }
+        if self.state is State.RETURNING:
+            ends = {
+                NAV_GOAL_REACHED: (self.final, f'back at the dock: {self.reason}'),
+                NAV_FAILED: (State.FAILED, f'the way back failed ({self.reason}): {message}'),
+                NAV_INACTIVE: (State.STOPPED, f'the way back was stopped ({self.reason})'),
+            }
+        else:
+            ends = {
+                NAV_GOAL_REACHED: (State.DONE, 'the end of the route was reached'),
+                NAV_FAILED: (State.FAILED, f'the follower failed: {message}'),
+                NAV_INACTIVE: (State.STOPPED, 'the follower was stopped'),
+            }
         # a state left from before this patrol's start (not active yet) ends nothing
         if not self.active or nav_state not in ends:
             return False
+        self.returned = self.state is State.RETURNING and nav_state == NAV_GOAL_REACHED
         return self.end(*ends[nav_state])
 
-    def on_report(self, severities: list[int]):
-        """Count an inspected point and its findings."""
-        if self.state is not State.RUNNING:
+    def on_report(self, severities: list[int], directory: str = ''):
+        """Count an inspected point and its findings (one finished on the way back too)."""
+        if self.state not in (State.RUNNING, State.RETURNING):
             return
         self.points += 1
+        if directory:
+            self.inspections.append(directory)
         for severity in severities:
             name = SEVERITY_NAMES[max(0, min(3, int(severity)))]
             self.counts[name] += 1
             self.worst = max(self.worst, int(severity))
+
+    def begin_return(self, final: State, reason: str) -> bool:
+        """Turn a running patrol into its way back to the dock; False when none runs."""
+        if self.state is not State.RUNNING:
+            return False
+        self.state, self.final, self.reason = State.RETURNING, final, reason
+        self.message, self.active = f'returning to the dock: {reason}', False
+        self.ignore_before = math.inf  # until the way back is started
+        return True
 
     def end(self, state: State, message: str) -> bool:
         """End the patrol with a state; True when it was running."""
@@ -106,7 +132,20 @@ class Session:
             'points': self.points,
             'findings': dict(self.counts),
             'worst': SEVERITY_NAMES[self.worst],
+            'returned': self.returned,
+            'inspections': list(self.inspections),
         }
+
+
+def start_checks(cfg, health, control, battery: float | None) -> tuple[bool, str]:
+    """Return whether a patrol may start: health level, e-stop, battery (cfg: StartConfig)."""
+    if health is not None and health.level > cfg.max_health:
+        return False, f'health level {health.level}: {"; ".join(health.issues)}'
+    if control is not None and control.estop:
+        return False, 'the e-stop is engaged'
+    if cfg.min_battery > 0.0 and (battery is None or battery < cfg.min_battery):
+        return False, f'battery {battery if battery is not None else "unknown"}'
+    return True, 'ok'
 
 
 def route_path(site: str, route: str) -> str:

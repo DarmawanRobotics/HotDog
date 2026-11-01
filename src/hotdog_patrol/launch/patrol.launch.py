@@ -27,7 +27,7 @@ EXTRA = {
 def nodes(context):
     """Build patrol_node from the arguments."""
     arg = hl.performer(context)
-    files = hl.parameter_files(arg, PACKAGE, 'patrol.yaml', robot=False)
+    files = hl.parameter_files(arg, PACKAGE, 'patrol.yaml')
     values = hl.overrides(arg, robot_ns=arg('robot_ns'), sites_dir=arg('sites_dir'),
                           reports_dir=arg('reports_dir'))  # fmt: skip
     return [
