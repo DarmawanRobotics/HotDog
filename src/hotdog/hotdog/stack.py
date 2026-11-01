@@ -59,6 +59,7 @@ class Options:
     pod: bool = True  # unipod_driver for the UniPod MT11
     patrol: bool = True  # patrol_node: patrols from the dock, on demand or on a schedule
     reports: bool = True  # report_node: HTML reports, retention, the report server
+    alerts: bool = True  # alert_node: Telegram and webhook alerts
 
 
 # component -> (package, launch file, nodes it starts, by node name)
@@ -88,6 +89,7 @@ COMPONENTS = {
     'inspection': ('hotdog_inspection', 'inspection.launch.py', ('inspection_node',)),
     'patrol': ('hotdog_patrol', 'patrol.launch.py', ('patrol_node',)),
     'reports': ('hotdog_reports', 'reports.launch.py', ('report_node',)),
+    'alerts': ('hotdog_alerts', 'alerts.launch.py', ('alert_node',)),
 }
 RSLIDAR_NODE = 'rslidar_sdk_node'  # reads its own file (config/rslidar.yaml), no parameters
 POD_NAMESPACE = 'unipod'
@@ -139,6 +141,7 @@ def component_arguments(o: Options) -> dict:
         'inspection': {'sites_dir': o.sites_dir},
         'patrol': {'robot_ns': o.robot_ns, 'sites_dir': o.sites_dir},
         'reports': {},
+        'alerts': {},
     }
 
 
@@ -149,6 +152,7 @@ def components(o: Options, sim: bool = False) -> list[str]:
         'inspection': o.inspection,
         'patrol': o.patrol,
         'reports': o.reports,
+        'alerts': o.alerts,
     }
     return [
         name for name in COMPONENTS if wanted.get(name, True) and not (sim and name in ROBOT_ONLY)

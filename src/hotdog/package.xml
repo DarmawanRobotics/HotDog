@@ -25,6 +25,7 @@
   <exec_depend>hotdog_inspection</exec_depend>
   <exec_depend>hotdog_patrol</exec_depend>
   <exec_depend>hotdog_reports</exec_depend>
+  <exec_depend>hotdog_alerts</exec_depend>
   <exec_depend>unipod_driver</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
