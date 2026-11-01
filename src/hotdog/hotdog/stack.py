@@ -23,6 +23,7 @@ SITES_NODES = (
     'route_recorder_node',
     ROUTE_NODE,
     'inspection_node',
+    'patrol_node',
 )
 LIDAR_SOURCES = ('rslidar', 'external')
 
@@ -56,6 +57,7 @@ class Options:
     health: bool = True
     inspection: bool = True  # inspection_node, the follower's hook at every stop point
     pod: bool = True  # unipod_driver for the UniPod MT11
+    patrol: bool = True  # patrol_node: patrols from the dock, on demand or on a schedule
 
 
 # component -> (package, launch file, nodes it starts, by node name)
@@ -83,6 +85,7 @@ COMPONENTS = {
     'control': ('dharma_control', 'control.launch.py', ('control_mux_node',)),
     'health': ('dharma_health', 'health.launch.py', (HEALTH_NODE,)),
     'inspection': ('hotdog_inspection', 'inspection.launch.py', ('inspection_node',)),
+    'patrol': ('hotdog_patrol', 'patrol.launch.py', ('patrol_node',)),
 }
 RSLIDAR_NODE = 'rslidar_sdk_node'  # reads its own file (config/rslidar.yaml), no parameters
 POD_NAMESPACE = 'unipod'
@@ -132,12 +135,13 @@ def component_arguments(o: Options) -> dict:
         'control': {'cmd_vel_topic': f'{driver}/cmd_vel'},  # the mux drives the robot
         'health': {},
         'inspection': {'sites_dir': o.sites_dir},
+        'patrol': {'robot_ns': o.robot_ns, 'sites_dir': o.sites_dir},
     }
 
 
 def components(o: Options, sim: bool = False) -> list[str]:
     """Return the components to start, in launch order."""
-    wanted = {'health': o.health, 'inspection': o.inspection}
+    wanted = {'health': o.health, 'inspection': o.inspection, 'patrol': o.patrol}
     return [
         name for name in COMPONENTS if wanted.get(name, True) and not (sim and name in ROBOT_ONLY)
     ]
