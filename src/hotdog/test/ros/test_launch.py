@@ -17,6 +17,7 @@ import yaml
 from hotdog import bringup, launch_utils, stack
 
 ROOT = Path(__file__).resolve().parents[2]
+STUBBED = ('hotdog_base', 'm20_bringup')  # besides the dharma_* packages
 CONTRACT = {'params_file', 'robot_params', 'use_sim_time', 'log_level'}
 STUB = """from launch import LaunchDescription
 
@@ -45,7 +46,7 @@ def packages(tmp_path, monkeypatch):
         root = tmp_path / 'share' / package
         (root / 'launch').mkdir(parents=True, exist_ok=True)
         target = root.joinpath(*path)
-        if package.startswith('dharma_') and target.suffix == '.py':
+        if (package.startswith('dharma_') or package in STUBBED) and target.suffix == '.py':
             target.write_text(STUB)
         return str(target)
 
@@ -90,14 +91,20 @@ def text(value) -> str:
     return perform_substitutions(LaunchContext(), normalize_to_list_of_substitutions(value))
 
 
-def merged_parameters(actions) -> dict:
-    """Return the merged parameter file passed to the package launches."""
+def include_arguments(actions, package: str) -> dict:
+    """Return the launch arguments of the include of a package."""
     for group in (a for a in actions if isinstance(a, GroupAction)):
         for sub in group.get_sub_entities():
             if isinstance(sub, IncludeLaunchDescription):
-                args = {text(k): text(v) for k, v in sub.launch_arguments}
-                return bringup.load_params(args['params_file'])
-    raise AssertionError('no include')
+                location = Path(sub.launch_description_source.location)
+                if location.parent.parent.name == package:
+                    return {text(k): text(v) for k, v in sub.launch_arguments}
+    raise AssertionError(f'no include of {package}')
+
+
+def merged_parameters(actions) -> dict:
+    """Return the merged parameter file passed to the package launches."""
+    return bringup.load_params(include_arguments(actions, 'dharma_odometry')['params_file'])
 
 
 def test_arguments_of_both_launch_files():
@@ -105,14 +112,16 @@ def test_arguments_of_both_launch_files():
              .get_launch_arguments()}  # fmt: skip
     sim = {a.name for a in load_launch('sim.launch.py').generate_launch_description()
            .get_launch_arguments()}  # fmt: skip
-    assert CONTRACT | {'robot_ns', 'robot_driver', 'odometry', 'site', 'sites_dir'} <= robot
+    robot_only = {'robot_driver', 'robot_ip', 'driver_params', 'lidar'}
+    assert CONTRACT | robot_only | {'robot_ns', 'site', 'sites_dir'} <= robot
     assert CONTRACT | {'world', 'scenario', 'rviz', 'site'} <= sim
-    assert not {'robot_driver', 'odometry'} & sim
+    assert not robot_only & sim
 
 
 def test_robot_launch_composes_the_stack(packages):
     actions = load_launch('robot.launch.py').launch_setup(context())
-    assert includes(actions) == [stack.COMPONENTS[c][0] for c in stack.COMPONENTS]
+    expected = [bringup.DEFAULT_DRIVER, *(stack.COMPONENTS[c][0] for c in stack.COMPONENTS)]
+    assert includes(actions) == expected
     assert isinstance(actions[0], LogInfo)
     caller = {**context().launch_configurations, 'world': 'hall'}
     for group in (a for a in actions if isinstance(a, GroupAction)):
@@ -124,8 +133,10 @@ def test_merged_parameters_name_the_started_nodes(packages):
     actions = load_launch('robot.launch.py').launch_setup(context())
     data = merged_parameters(actions)
     params = data[stack.HEALTH_NODE]['ros__parameters']
-    assert '/control_mux_node' in params['nodes']['expected']
-    assert '' not in params['nodes']['expected']
+    expected = params['nodes']['expected']
+    assert {'/control_mux_node', '/cloud_merger_node', '/rslidar_sdk_node'} <= set(expected)
+    assert {'/m20/m20_driver', '/m20/robot_state_publisher'} <= set(expected)
+    assert '' not in expected
     assert data['control_mux_node']['ros__parameters']['use_health_limit'] is True
 
 
@@ -148,10 +159,10 @@ def test_shared_overrides_are_flagged(packages, tmp_path):
 
 def test_invalid_arguments_stop_the_launch(packages):
     launch = load_launch('robot.launch.py')
-    with pytest.raises(bringup.BringupError, match='start_mapping'):
-        launch.launch_setup(context(start_mapping='true'))
-    with pytest.raises(bringup.BringupError, match='odometry'):
-        launch.launch_setup(context(odometry='gmapping'))
+    with pytest.raises(bringup.BringupError, match='lidar'):
+        launch.launch_setup(context(lidar='livox'))
+    with pytest.raises(bringup.BringupError, match='driver_params'):
+        launch.launch_setup(context(driver_params='/nonexistent.yaml'))
     with pytest.raises(bringup.BringupError, match='params_file'):
         launch.launch_setup(context(params_file='/nonexistent.yaml'))
 
@@ -167,6 +178,18 @@ def test_driver_include(packages):
     assert includes(actions)[0] == 'my_driver'
 
 
+def test_m20_driver_gets_this_products_settings(packages):
+    launch = load_launch('robot.launch.py')
+    args = include_arguments(launch.launch_setup(context()), 'm20_bringup')
+    assert args['namespace'] == 'm20'
+    assert args['driver_params'] == str(ROOT / 'config' / 'm20_driver.yaml')
+    assert 'robot_ip' not in args
+    args = include_arguments(launch.launch_setup(context(robot_ip='10.0.0.5')), 'm20_bringup')
+    assert args['robot_ip'] == '10.0.0.5'
+    actions = launch.launch_setup(context(robot_driver=''))
+    assert bringup.DEFAULT_DRIVER not in includes(actions)
+
+
 def test_sim_launch_adds_the_simulator(packages):
     launch = load_launch('sim.launch.py')
     defaults = {**launch.SIM_DEFAULTS, 'world': '', 'scenario': '', 'rviz': 'false'}
@@ -176,7 +199,8 @@ def test_sim_launch_adds_the_simulator(packages):
     assert data['lidar_sector_node']['ros__parameters']['input']['type'] == 'pointcloud2'
     expected = data[stack.HEALTH_NODE]['ros__parameters']['nodes']['expected']
     assert '/sim_robot_node' in expected
-    assert '/fastlio_mapping_node' not in expected
+    assert '/cloud_merger_node' not in expected
+    assert 'hotdog_base' not in includes(actions)
 
 
 @pytest.mark.skipif(shutil.which('ros2') is None, reason='ros2 CLI not available')

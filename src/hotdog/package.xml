@@ -3,7 +3,7 @@
 <package format="3">
   <name>hotdog</name>
   <version>0.1.0</version>
-  <description>Bringup of a robot on the Dharma stack: the robot profile, per-node overrides, one launch for the whole stack (and the same stack on the simulator).</description>
+  <description>Bringup of HotDog on the Lynx M20: the robot profile, the M20 driver settings, the per-node overrides of the Dharma stack, one launch for the whole robot (and the same stack on the simulator).</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
 
@@ -20,6 +20,8 @@
   <exec_depend>dharma_control</exec_depend>
   <exec_depend>dharma_health</exec_depend>
   <exec_depend>dharma_sim</exec_depend>
+  <exec_depend>hotdog_base</exec_depend>
+  <exec_depend>m20_bringup</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

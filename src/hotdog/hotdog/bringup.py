@@ -17,13 +17,14 @@ from dharma_utils.io import valid_name
 from dharma_utils.robot import RobotProfile
 
 DEFAULT_ROBOT_NS = 'm20'
-ODOMETRY_METHODS = ('fast_lio', 'leg_kilo', 'external')  # external: simulator, own estimator
+LIDAR_SOURCES = ('rslidar', 'external')  # external: the clouds come from elsewhere
 NAMESPACE_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*(/[A-Za-z][A-Za-z0-9_]*)*$')
 # robot_driver: '<package>' or '<package>/<file>.launch.(py|xml|yaml)'
 DRIVER_RE = re.compile(
     r'^([A-Za-z][A-Za-z0-9_]*)(?:/([A-Za-z0-9_.-]+\.launch\.(?:py|xml|yaml)))?$'
 )
 DEFAULT_DRIVER_LAUNCH = 'bringup.launch.py'
+DEFAULT_DRIVER = 'm20_bringup'  # m20_ros2: driver_node and the URDF in the robot namespace
 WILDCARD = '/**'
 ROBOT_PREFIX = 'robot.'
 
@@ -45,12 +46,12 @@ def resolve_namespace(value: str) -> str:
     return ns
 
 
-def resolve_odometry(value: str) -> str:
-    """Return a valid odometry method (empty: fast_lio)."""
-    method = str(value).strip().lower() or ODOMETRY_METHODS[0]
-    if method not in ODOMETRY_METHODS:
-        raise BringupError(f'odometry:={value!r}, use one of {", ".join(ODOMETRY_METHODS)}')
-    return method
+def resolve_lidar(value: str) -> str:
+    """Return the LiDAR source: rslidar (default) or external."""
+    source = str(value).strip().lower() or LIDAR_SOURCES[0]
+    if source not in LIDAR_SOURCES:
+        raise BringupError(f'lidar:={value!r}, use one of {", ".join(LIDAR_SOURCES)}')
+    return source
 
 
 def resolve_detector(value: str) -> str:
@@ -80,6 +81,14 @@ def resolve_driver(value: str) -> tuple[str, str] | None:
             f"robot_driver:={value!r}, use '<package>' or '<package>/<file>.launch.py'"
         )
     return match.group(1), match.group(2) or DEFAULT_DRIVER_LAUNCH
+
+
+def driver_nodes(value: str, ns: str) -> list[str]:
+    """Return the nodes the robot driver starts (known for m20_bringup only)."""
+    driver = resolve_driver(value)
+    if driver is None or driver[0] != DEFAULT_DRIVER:
+        return []
+    return [f'/{ns}/m20_driver', f'/{ns}/robot_state_publisher']
 
 
 def existing_file(name: str, path: str) -> str:
@@ -180,11 +189,11 @@ def with_expected_nodes(data: dict, node: str, expected: list[str]) -> dict:
     return merge(data, {node: {'ros__parameters': {'nodes': {'expected': names}}}})
 
 
-def with_sites_dir(data: dict, node: str, sites_dir: str) -> dict:
-    """Give the route loader the sites directory of the launch (nothing when empty)."""
+def with_sites_dir(data: dict, nodes, sites_dir: str) -> dict:
+    """Give every node that reads sites_dir the one of the launch (nothing when empty)."""
     if not sites_dir:
         return data
-    return merge(data, {node: {'ros__parameters': {'sites_dir': sites_dir}}})
+    return merge(data, {n: {'ros__parameters': {'sites_dir': sites_dir}} for n in nodes})
 
 
 def write_params(data: dict, directory: str | None = None) -> str:
