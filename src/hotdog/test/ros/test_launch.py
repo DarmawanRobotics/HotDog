@@ -17,7 +17,14 @@ import yaml
 from hotdog import bringup, launch_utils, stack
 
 ROOT = Path(__file__).resolve().parents[2]
-STUBBED = ('hotdog_base', 'hotdog_inspection', 'hotdog_patrol', 'm20_bringup', 'unipod_driver')
+STUBBED = (
+    'hotdog_base',
+    'hotdog_inspection',
+    'hotdog_patrol',
+    'hotdog_reports',
+    'm20_bringup',
+    'unipod_driver',
+)
 CONTRACT = {'params_file', 'robot_params', 'use_sim_time', 'log_level'}
 STUB = """from launch import LaunchDescription
 

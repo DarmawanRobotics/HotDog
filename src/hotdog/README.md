@@ -41,6 +41,8 @@ ros2 launch hotdog sim.launch.py rviz:=true scenario:=person_crossing
 | `fiducials`                    | `false`                                    | camera throttle + tag detector (needs a calibrated camera)                            |
 | `camera_image` / `camera_info` |                                            | empty: the perception defaults                                                        |
 | `health`                       | `true`                                     | start the health monitor                                                              |
+| `inspection` / `patrol`        | `true` (`INSPECTION`, `PATROL`)            | inspection_node, patrol_node                                                          |
+| `reports`                      | `true` (`REPORTS`)                         | report_node: HTML reports, retention, the report server (port 8088)                   |
 | `world` / `scenario` / `rviz`  | / / `false`                                | simulator only                                                                        |
 
 What the launch does:
