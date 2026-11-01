@@ -212,7 +212,7 @@ gimbal settle time (2.5 s), the thermal samples and, with `acoustic`, the detect
 | `near_m`, `dock_clearance_m` | 2.0, 1.0 | where the way back starts and how far before the dock it ends        |
 
 An operator pause, the e-stop or REMOTE is never overruled. The way back is the taught route,
-reversed from the earliest waypoint near the robot, without stop points, into
+reversed from the nearest waypoint of its first pass, without stop points, into
 `<site>/patrol/return.csv`; then `charge_start` docks the M20.
 
 ## The schedule

@@ -22,7 +22,7 @@ patrol_node:
       max_duration_min: 120.0 # a patrol running longer goes back (0: off)
       hold_timeout_sec: 180.0 # blocked this long: back; off the route or not localized: stop
       nav_timeout_sec: 5.0 # navigation/status silent this long: the patrol fails
-      near_m: 2.0 # the way back starts at the earliest route point this near the robot
+      near_m: 2.0 # the way back starts at the nearest point of the first pass this near
       dock_clearance_m: 1.0 # the way back ends this far from the route's start (the dock)
     schedule:
       enabled: false # live: ros2 param set /patrol_node schedule.enabled true
