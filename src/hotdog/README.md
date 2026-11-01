@@ -42,6 +42,7 @@ ros2 launch hotdog sim.launch.py rviz:=true scenario:=person_crossing
 | `camera_image` / `camera_info` |                                            | empty: the perception defaults                                                        |
 | `health`                       | `true`                                     | start the health monitor                                                              |
 | `inspection` / `patrol`        | `true` (`INSPECTION`, `PATROL`)            | inspection_node, patrol_node                                                          |
+| `alerts`                       | `true` (`ALERTS`)                          | alert_node: Telegram and webhook alerts                                               |
 | `reports`                      | `true` (`REPORTS`)                         | report_node: HTML reports, retention, the report server (port 8088)                   |
 | `world` / `scenario` / `rviz`  | / / `false`                                | simulator only                                                                        |
 
