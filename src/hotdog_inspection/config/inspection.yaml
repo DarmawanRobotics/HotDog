@@ -1,0 +1,23 @@
+# hotdog_inspection defaults: only what differs from the configuration dataclasses, plus notes.
+# Every parameter with its unit and range: `ros2 param describe /inspection_node <name>`.
+# The map and base frames come from the robot profile (robot_params:=robot.yaml).
+inspection_node:
+  ros__parameters:
+    enabled: true # live: false lets the stop points pass without inspection
+    sites_dir: ~/.hotdog/sites # <site>/inspection.yaml: points (map frame) and their targets
+    reports_dir: ~/.hotdog/reports # <day>/<time>_<point>/report.json + images, <day>/findings.csv
+    match_radius_m: 1.5 # a stop this close to a point inspects it (taught at the same spot)
+    max_duration_sec: 150.0 # per point: keep below the follower's hooks.inspection_timeout_sec
+    pod:
+      namespace: /unipod # unipod_driver
+      settle_sec: 2.5 # gimbal and zoom (auto focus) before measuring
+    thermal:
+      ambient_c: 30.0 # live: the air temperature at the site (ros2 param set ... thermal.ambient_c 33.0)
+      width: 640 # MT11 thermal pixels (1280 x 1024 with AI super-resolution on)
+      height: 512
+      samples: 3 # per region, the median is used
+      refresh_shutter: true # flat-field correction once per point
+      # NETA MTS practice; a target's max_temp_c replaces absolute.critical
+      absolute: {attention: 80.0, warning: 90.0, critical: 105.0} # degC
+      ambient: {attention: 11.0, warning: 21.0, critical: 41.0} # degC over ambient_c
+      similar: {attention: 2.0, warning: 4.0, critical: 16.0} # degC over the other phases
