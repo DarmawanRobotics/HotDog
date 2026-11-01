@@ -37,7 +37,7 @@ then teach its targets ([below](#teach-inspection-targets)) before driving on. E
 dock's approach, then:
 
 ```bash
-ros2 service call /route/stop std_srvs/srv/Trigger     # <site>/routes/<date>_<time>.csv
+ros2 service call /route/stop std_srvs/srv/Trigger     # <site>/routes/<YYYY-MM-DD_HH-MM-SS>.csv
 ros2 service call /m20/charge_start std_srvs/srv/Trigger
 ```
 
@@ -55,11 +55,11 @@ ros2 service call /inspection/add_target hotdog_interfaces/srv/AddTarget \
   "{name: bay1_ds_clamps, thermal: true, acoustic: true, strips: 3}"
 ```
 
-| Equipment                                   | Target                                                      |
-| ------------------------------------------- | ----------------------------------------------------------- |
-| three phases side by side (clamps, bushings) | `thermal: true, strips: 3`: the phases are compared         |
-| a single joint or termination               | `thermal: true` (`max_temp_c` for an own limit)             |
-| insulators, cable terminations, GIS spacers | `acoustic: true`: partial discharge detection               |
+| Equipment                                    | Target                                              |
+| -------------------------------------------- | --------------------------------------------------- |
+| three phases side by side (clamps, bushings) | `thermal: true, strips: 3`: the phases are compared |
+| a single joint or termination                | `thermal: true` (`max_temp_c` for an own limit)     |
+| insulators, cable terminations, GIS spacers  | `acoustic: true`: partial discharge detection       |
 
 Several targets per point are fine (each is a pan, tilt and zoom). Fine-tune them in
 `<sites_dir>/<site>/inspection.yaml` (regions in thermal pixels, limits, detection time); the
@@ -70,7 +70,7 @@ file is read at every inspection. Details: [hotdog_inspection](../src/hotdog_ins
 From the dock, on demand:
 
 ```bash
-ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 20261101_093000}"
+ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 2026-11-01_09-30-00}"
 ros2 topic echo /patrol/status
 ```
 
@@ -82,27 +82,33 @@ patrol_node:
     schedule:
       enabled: true
       times: ["06:00", "14:00", "22:00"]
-      route: "20261101_093000"
+      route: "2026-11-01_09-30-00"
 ```
 
 A patrol checks health, battery and the e-stop, re-anchors at the dock, stands up, follows the
 route, inspects at each stop point and docks again. Pause and resume:
 `/navigation/pause`, `/navigation/resume`; stop: `/patrol/stop` (the robot stands where it is).
 
+**Back to the dock** at any time: `ros2 service call /patrol/return std_srvs/srv/Trigger`. The
+robot walks the taught route backwards (no inspections) and docks. The watchdog does the same
+on its own below 20 % battery, after 2 h or when the robot is blocked for 3 min; off the route,
+lost or with a silent follower it stops instead and the patrol ends `FAILED`. An operator
+pause, the e-stop or REMOTE is never overruled.
+
 ## Results
 
-| What                         | Where                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| each inspection point        | `~/.hotdog/reports/<day>/<time>_<point>/report.json` and the images         |
-| every finding of the day     | `~/.hotdog/reports/<day>/findings.csv`                                       |
-| each patrol                  | `~/.hotdog/reports/<day>/patrol_<time>.json`: points, findings, the worst   |
-| live                         | `/inspection/report`, `/patrol/status`                                       |
+| What                     | Where                                                                     |
+| ------------------------ | ------------------------------------------------------------------------- |
+| each inspection point    | `~/.hotdog/reports/<day>/<time>_<point>/report.json` and the images       |
+| every finding of the day | `~/.hotdog/reports/<day>/findings.csv`                                    |
+| each patrol              | `~/.hotdog/reports/<day>/patrol_<time>.json`: points, findings, the worst |
+| live                     | `/inspection/report`, `/patrol/status`                                    |
 
-| Severity  | Thermal (default)                                        | Partial discharge | Act                       |
-| --------- | -------------------------------------------------------- | ----------------- | ------------------------- |
-| attention | ≥ 80 °C, ≥ 11 °C over ambient, ≥ 2 °C over the phases     | corona            | look again next round     |
-| warning   | ≥ 90 °C, ≥ 21 °C over ambient, ≥ 4 °C over the phases     | surface           | plan a repair             |
-| critical  | ≥ 105 °C, ≥ 41 °C over ambient, ≥ 16 °C over the phases   | floating          | report to the substation now |
+| Severity  | Thermal (default)                                       | Partial discharge | Act                          |
+| --------- | ------------------------------------------------------- | ----------------- | ---------------------------- |
+| attention | ≥ 80 °C, ≥ 11 °C over ambient, ≥ 2 °C over the phases   | corona            | look again next round        |
+| warning   | ≥ 90 °C, ≥ 21 °C over ambient, ≥ 4 °C over the phases   | surface           | plan a repair                |
+| critical  | ≥ 105 °C, ≥ 41 °C over ambient, ≥ 16 °C over the phases | floating          | report to the substation now |
 
 Copy a day off the robot: `scp -r robot@<ip>:~/.hotdog/reports/<day> .`
 
@@ -116,14 +122,16 @@ Copy a day off the robot: `scp -r robot@<ip>:~/.hotdog/reports/<day> .`
 
 ## When something goes wrong
 
-| Symptom                                           | Cause and fix                                                                                                                                      |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `patrol/status` `FAILED` at `checks`              | `message` says which: health ERROR (`/health/status` issues), e-stop latched, battery below `start.min_battery`                                     |
-| `FAILED` at `stand up`                            | the M20 is charging, on a hard e-stop or not connected: `/m20/state`                                                                               |
-| the robot pauses mid-route, `localization` `NONE` | the M20 driver restarted, its odometry is reset: drive it to the dock with the remote, `/localization/assume_origin`, start the patrol again          |
-| it stops short of the stop points over the round  | odometry drift: shorter routes, or tags along the way (`fiducials:=true`, a calibrated camera)                                                    |
-| reports `partial`, `pod_connected: false`        | the pod's network or power: `ping $POD_IP`, `ros2 topic hz /unipod/status`                                                                         |
-| `acoustic_connected: false`                       | `ping 192.168.2.204`, the password in `/etc/hotdog/hotdog.env`, the camera in partial discharge mode                                                |
-| the robot does not move in AUTO                   | `/control/status` (mode, e-stop, field), `/m20/state` `velocity` (`hold`: call `stand_up`; `takeover`: the app or remote took the robot)          |
+| Symptom                                           | Cause and fix                                                                                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `patrol/status` `FAILED` at `checks`              | `message` says which: health ERROR (`/health/status` issues), e-stop latched, battery below `start.min_battery`                              |
+| `FAILED` at `stand up`                            | the M20 is charging, on a hard e-stop or not connected: `/m20/state`                                                                         |
+| the robot pauses mid-route, `localization` `NONE` | the M20 driver restarted, its odometry is reset: drive it to the dock with the remote, `/localization/assume_origin`, start the patrol again |
+| `FAILED`, `returned: true`                        | the watchdog brought it back (battery, duration, blocked): the `message` says which; the reports of the points done are kept                 |
+| `FAILED`: `no way back`                           | the robot had no pose or the route file is gone: drive it to the dock with the remote                                                        |
+| it stops short of the stop points over the round  | odometry drift: shorter routes, or tags along the way (`fiducials:=true`, a calibrated camera)                                               |
+| reports `partial`, `pod_connected: false`         | the pod's network or power: `ping $POD_IP`, `ros2 topic hz /unipod/status`                                                                   |
+| `acoustic_connected: false`                       | `ping 192.168.2.204`, the password in `/etc/hotdog/hotdog.env`, the camera in partial discharge mode                                         |
+| the robot does not move in AUTO                   | `/control/status` (mode, e-stop, field), `/m20/state` `velocity` (`hold`: call `stand_up`; `takeover`: the app or remote took the robot)     |
 
 Logs: `journalctl -fu hotdog`; `scripts/setup.sh` checks every component.

@@ -5,6 +5,8 @@ patrol/start runs the start sequence in a worker thread (health, e-stop and batt
 localization/assume_origin at the dock, the robot's stand-up, AUTO mode, the route, the
 follower's start), then follows navigation/status to the end of the route, counts the
 inspection reports on the way, writes the patrol summary and sends the M20 back to its dock.
+A watchdog walks the taught route back to the dock on a low battery, an overlong patrol or a
+blocked robot (patrol/return does the same on request), and stops a lost or silent patrol.
 """
 
 from __future__ import annotations
@@ -14,34 +16,40 @@ import os
 import threading
 import time
 
-from hotdog_base.utils.calls import call
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from sensor_msgs.msg import BatteryState
 from std_srvs.srv import Trigger
 
 from dharma_interfaces.msg import ControlStatus, HealthStatus, NavigationStatus, SiteStatus
-from dharma_interfaces.srv import LoadPath, SetMode
 from dharma_utils.io import expand, write_json_atomic
 from dharma_utils.ros import EVENTS, LATCHED, SENSOR, DharmaNode, run
 from hotdog_interfaces.msg import InspectionReport, PatrolStatus
 from hotdog_interfaces.srv import StartPatrol
+from hotdog_patrol.core import retreat
 from hotdog_patrol.core.config import PatrolConfig, with_ns
-from hotdog_patrol.core.schedule import ScheduleError, due, next_slot
-from hotdog_patrol.core.session import Session, State, route_path, run_steps
+from hotdog_patrol.core.schedule import ScheduleError, due
+from hotdog_patrol.core.session import Session, State, route_path, run_steps, start_checks
+from hotdog_patrol.core.watchdog import RETURN, Watchdog
+from hotdog_patrol.utils.returning import ReturnPlanner
+from hotdog_patrol.utils.stack import StackClients
+from hotdog_patrol.utils.status import status_msg
 
 STATUS_PERIOD_SEC = 2.0
 SCHEDULE_PERIOD_SEC = 10.0
+WATCHDOG_PERIOD_SEC = 1.0
 
 
 class PatrolNode(DharmaNode):
-    """Starts, follows and reports route patrols."""
+    """Starts, follows, guards and reports route patrols."""
 
     def __init__(self, **kwargs):
         super().__init__('patrol_node', **kwargs)
         self.config = self.declare_config(PatrolConfig)
+        self.robot = self.declare_robot().value
         self.group = ReentrantCallbackGroup()
         self.lock = threading.Lock()
         self.session = Session()
+        self.watchdog = Watchdog(self.config.value.abort)
         self.fired: set = set()  # schedule slots already started or skipped
         self.site, self.health, self.control, self.battery = '', None, None, None
         self.status_pub = self.latched(PatrolStatus, 'patrol/status')
@@ -53,23 +61,17 @@ class PatrolNode(DharmaNode):
         sub(BatteryState, with_ns(cfg.battery_topic, cfg.robot_ns), self.on_battery, SENSOR)
         sub(NavigationStatus, 'navigation/status', self.on_navigation, LATCHED)
         sub(InspectionReport, 'inspection/report', self.on_report, EVENTS)
-
-        def client(srv, name):
-            name = with_ns(name, cfg.robot_ns)
-            return self.create_client(srv, name, callback_group=self.group) if name else None
-
-        self.assume_origin = client(Trigger, 'localization/assume_origin')
-        self.set_mode = client(SetMode, 'control/set_mode')
-        self.load_path = client(LoadPath, 'navigation/load_path')
-        self.nav_start = client(Trigger, 'navigation/start')
-        self.nav_stop = client(Trigger, 'navigation/stop')
-        self.stand_up = client(Trigger, cfg.start.stand_up_service)
-        self.dock = client(Trigger, cfg.finish.dock_service)
-        self.create_service(StartPatrol, 'patrol/start', self.srv_start, callback_group=self.group)
-        self.create_service(Trigger, 'patrol/stop', self.srv_stop, callback_group=self.group)
+        self.stack = StackClients(self, cfg, self.group)
+        self.planner = ReturnPlanner(self)
+        srv = self.create_service
+        srv(StartPatrol, 'patrol/start', self.srv_start, callback_group=self.group)
+        srv(Trigger, 'patrol/stop', self.srv_stop, callback_group=self.group)
+        srv(Trigger, 'patrol/return', self.srv_return, callback_group=self.group)
         self.every(STATUS_PERIOD_SEC, self.publish_status)
-        group = MutuallyExclusiveCallbackGroup()
-        self.every(SCHEDULE_PERIOD_SEC, self.check_schedule, group=group)
+        self.every(
+            SCHEDULE_PERIOD_SEC, self.check_schedule, group=MutuallyExclusiveCallbackGroup()
+        )
+        self.every(WATCHDOG_PERIOD_SEC, self.guard, group=MutuallyExclusiveCallbackGroup())
         self.log.info('patrol', schedule=cfg.schedule.enabled, times=','.join(cfg.schedule.times))
         self.publish_status()
 
@@ -79,16 +81,18 @@ class PatrolNode(DharmaNode):
         self.battery = float(msg.percentage)
 
     def on_navigation(self, msg: NavigationStatus):
-        """Follow the follower to the end of the route."""
+        """Follow the follower to the end of the route (or back to the dock)."""
         with self.lock:
-            ended = self.session.on_navigation(msg.state, msg.message)
+            self.watchdog.on_navigation(msg.state, msg.pause_reasons, time.monotonic())
+            stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+            ended = self.session.on_navigation(msg.state, msg.message, stamp)
         if ended:
             self.finish()
 
     def on_report(self, msg: InspectionReport):
         """Count an inspected point of the running patrol."""
         with self.lock:
-            self.session.on_report([f.severity for f in msg.findings])
+            self.session.on_report([f.severity for f in msg.findings], msg.directory)
 
     # ---------------------------------------------------------------- start
     def srv_start(self, request, response):
@@ -99,13 +103,16 @@ class PatrolNode(DharmaNode):
 
     def start(self, route: str) -> tuple[bool, str]:
         """Begin the start sequence of a patrol in a worker thread."""
+        sites_dir = expand(self.config.sites_dir)
         with self.lock:
             if self.session.busy:
                 return False, f'a patrol is {self.session.state.name.lower()}'
             if not self.site:
                 return False, 'no site loaded (site/load)'
             try:
-                path = route_path(self.site, route)
+                path = route_path(self.site, route) or retreat.remembered_route(
+                    sites_dir, self.site
+                )
             except ValueError as error:
                 return False, str(error)
             self.session = Session(route=path, site=self.site, started=time.time(),
@@ -116,22 +123,25 @@ class PatrolNode(DharmaNode):
 
     def run_start(self, path: str):
         """Run the start steps; RUNNING when every one succeeded, else FAILED."""
-        cfg = self.config.value.start
+        cfg, stack = self.config.value.start, self.stack
         steps = [('checks', self.checks)]
         if cfg.reanchor:
-            steps.append(('re-anchor', lambda: self.trigger(self.assume_origin)))
-        if self.stand_up is not None:
+            steps.append(('re-anchor', lambda: stack.trigger(stack.assume_origin)))
+        if stack.stand_up is not None:
             timeout = cfg.stand_up_timeout_sec
-            steps.append(('stand up', lambda: self.trigger(self.stand_up, timeout)))
-        steps.append(('auto', self.auto_mode))
+            steps.append(('stand up', lambda: stack.trigger(stack.stand_up, timeout)))
+        steps.append(('auto', stack.auto))
         if path:
-            steps.append(('route', lambda: self.load(path)))
-        steps.append(('start', lambda: self.trigger(self.nav_start)))
+            steps.append(('route', lambda: stack.load(path)))
+        steps.append(('start', lambda: stack.trigger(stack.nav_start)))
         ok, message = run_steps(steps)
         with self.lock:
             if self.session.state is State.STARTING:
                 self.session.state = State.RUNNING if ok else State.FAILED
                 self.session.message = message
+                self.watchdog.reset(time.monotonic())
+        if ok and path:
+            self.planner.remember(self.site, path)
         if not ok:
             self.log.error('patrol not started', detail=message)
             self.finish()
@@ -139,48 +149,96 @@ class PatrolNode(DharmaNode):
 
     def checks(self) -> tuple[bool, str]:
         """Return whether the robot may start: health, e-stop, battery."""
-        cfg = self.config.value.start
-        health, control, battery = self.health, self.control, self.battery
-        if health is not None and health.level > cfg.max_health:
-            return False, f'health level {health.level}: {"; ".join(health.issues)}'
-        if control is not None and control.estop:
-            return False, 'the e-stop is engaged'
-        if cfg.min_battery > 0.0 and (battery is None or battery < cfg.min_battery):
-            return False, f'battery {battery if battery is not None else "unknown"}'
-        return True, 'ok'
+        return start_checks(self.config.value.start, self.health, self.control, self.battery)
 
-    def trigger(self, client, timeout: float = 0.0) -> tuple[bool, str]:
-        """Call a Trigger service; (ok, message)."""
-        timeout = timeout or self.config.start.call_timeout_sec
-        res, error = call(client, Trigger.Request(), timeout)
-        return (res.success, res.message) if res is not None else (False, error)
+    # ---------------------------------------------------------------- watchdog
+    def guard(self):
+        """Check the running patrol or its way back."""
+        with self.lock:
+            state = self.session.state
+            if state not in (State.RUNNING, State.RETURNING):
+                return
+            verdict = self.watchdog.check(
+                time.monotonic(), self.battery, returning=state is State.RETURNING
+            )
+        if not verdict.action:
+            return
+        self.log.warning('patrol watchdog', action=verdict.action, reason=verdict.reason)
+        if verdict.action == RETURN and self.config.value.abort.return_to_dock:
+            self.begin_return(State.FAILED, verdict.reason)
+        else:
+            self.abort(verdict.reason)
 
-    def auto_mode(self) -> tuple[bool, str]:
-        """Let navigation drive (control/set_mode auto)."""
-        res, error = call(self.set_mode, SetMode.Request(mode='auto'),
-                          self.config.start.call_timeout_sec)  # fmt: skip
-        return (res.success, res.message) if res is not None else (False, error)
+    def abort(self, reason: str):
+        """Fail the patrol where the robot stands."""
+        with self.lock:
+            ended = self.session.end(State.FAILED, reason)
+        if ended:
+            self.stack.stop_async()
+            self.finish()
 
-    def load(self, path: str) -> tuple[bool, str]:
-        """Load the route into the follower."""
-        res, error = call(self.load_path, LoadPath.Request(path=path),
-                          self.config.start.call_timeout_sec)  # fmt: skip
-        return (res.success, res.message) if res is not None else (False, error)
+    def srv_return(self, _request, response):
+        """Service: walk the route back to the dock now."""
+        response.success, response.message = self.begin_return(State.STOPPED, 'operator')
+        return response
+
+    def begin_return(self, final: State, reason: str) -> tuple[bool, str]:
+        """Turn the running patrol into its way back to the dock."""
+        with self.lock:
+            if not self.session.begin_return(final, reason):
+                return False, f'no patrol running ({self.session.state.name.lower()})'
+            self.watchdog.reset(time.monotonic())
+            session = self.session
+        self.log.warning('returning to the dock', reason=reason)
+        threading.Thread(target=self.run_return, args=(session,), daemon=True).start()
+        self.publish_status()
+        return True, f'returning to the dock: {reason}'
+
+    def run_return(self, session: Session):
+        """Stop the follower, plan the way back along the route, follow it."""
+        stack = self.stack
+        stack.trigger(stack.nav_stop)
+        ok, detail = self.planner.plan(session.site, session.route)
+        if ok and detail:
+            steps = [('auto', stack.auto), ('load', lambda: stack.load(detail)),
+                     ('start', self.start_return)]  # fmt: skip
+            ok, detail = run_steps(steps)
+            if ok:
+                self.publish_status()
+                return
+        with self.lock:
+            if session is not self.session:
+                return
+            if ok:  # within dock_clearance_m of the dock already
+                ended = session.end(session.final, f'at the dock: {session.reason}')
+                session.returned = ended
+            else:
+                ended = session.end(State.FAILED, f'no way back ({session.reason}): {detail}')
+        if ended:
+            self.finish()
+
+    def start_return(self) -> tuple[bool, str]:
+        """Start the follower on the way back; only its statuses from now on count."""
+        with self.lock:
+            if self.session.state is not State.RETURNING:
+                return False, 'the way back was stopped'
+            self.session.ignore_before = self.get_clock().now().nanoseconds * 1e-9
+        return self.stack.trigger(self.stack.nav_start)
 
     # ---------------------------------------------------------------- end
     def srv_stop(self, _request, response):
-        """Service: stop the patrol (the follower stops, the robot stands)."""
+        """Service: stop the patrol or its way back (the follower stops, the robot stands)."""
         with self.lock:
             ended = self.session.end(State.STOPPED, 'stopped by patrol/stop')
         if ended:
-            self.nav_stop.call_async(Trigger.Request())
+            self.stack.stop_async()
             self.finish()
         response.success = ended
         response.message = 'stopped' if ended else 'no patrol running'
         return response
 
     def finish(self):
-        """Write the patrol summary; after a finished route send the robot to its dock."""
+        """Write the patrol summary; at the end of the route or back home, dock the M20."""
         with self.lock:
             session = self.session
             summary = session.summary(time.time())
@@ -194,10 +252,14 @@ class PatrolNode(DharmaNode):
             self.log.error('patrol summary not written', error=str(error))
         self.log.info('patrol ended', state=summary['state'], points=summary['points'],
                       worst=summary['worst'], detail=summary['message'])  # fmt: skip
-        if session.state is State.DONE and self.dock is not None:
-            threading.Thread(target=lambda: self.log.info(
-                'dock', result=str(self.trigger(self.dock))), daemon=True).start()  # fmt: skip
+        if (session.state is State.DONE or session.returned) and self.stack.dock is not None:
+            threading.Thread(target=self.dock, daemon=True).start()
         self.publish_status()
+
+    def dock(self):
+        """Send the M20 to its dock (charge_start)."""
+        ok, message = self.stack.trigger(self.stack.dock)
+        (self.log.info if ok else self.log.error)('dock', ok=ok, detail=message)
 
     # ---------------------------------------------------------------- schedule
     def check_schedule(self):
@@ -219,22 +281,9 @@ class PatrolNode(DharmaNode):
     # ---------------------------------------------------------------- status
     def publish_status(self):
         """Publish patrol/status (latched)."""
-        cfg = self.config.value.schedule
         with self.lock:
-            s = self.session
-            msg = PatrolStatus(state=int(s.state), site=s.site, route=s.route, started=s.started,
-                               points=s.points, worst=s.worst, report=s.report,
-                               message=s.message)  # fmt: skip
-            msg.attention, msg.warning, msg.critical = (
-                s.counts['attention'], s.counts['warning'], s.counts['critical'])  # fmt: skip
-            msg.elapsed_sec = float(time.time() - s.started) if s.busy else 0.0
+            msg = status_msg(self.session, self.battery, self.config.value.schedule)
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.schedule_enabled = cfg.enabled
-        try:
-            nxt = next_slot(datetime.now(), cfg.times) if cfg.enabled else None
-        except ScheduleError:
-            nxt = None
-        msg.next_scheduled = nxt.strftime('%H:%M') if nxt else ''
         self.status_pub.publish(msg)
 
 

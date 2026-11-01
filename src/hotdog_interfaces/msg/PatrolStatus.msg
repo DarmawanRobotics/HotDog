@@ -6,6 +6,7 @@ uint8 RUNNING = 2         # the follower patrols the route
 uint8 DONE = 3            # the route's end was reached
 uint8 FAILED = 4          # a start step or the follower failed
 uint8 STOPPED = 5         # stopped by an operator (patrol/stop, navigation/stop)
+uint8 RETURNING = 6       # walking the route back to the dock (watchdog or patrol/return)
 
 std_msgs/Header header
 uint8 state
@@ -19,6 +20,8 @@ uint32 warning
 uint32 critical
 uint8 worst               # Finding.NORMAL ... CRITICAL
 string report             # the patrol summary on the robot (json)
+bool returned             # the patrol ended by walking back to the dock
+float32 battery           # fraction, -1: unknown
 bool schedule_enabled
 string next_scheduled     # local time of the next scheduled patrol, e.g. "14:00" (empty: none)
 string message

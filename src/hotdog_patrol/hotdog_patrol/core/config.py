@@ -1,4 +1,4 @@
-"""Configuration of patrol_node: the start sequence, the schedule, reports."""
+"""Configuration of patrol_node: the start sequence, the watchdog, the schedule, reports."""
 
 from __future__ import annotations
 
@@ -42,6 +42,40 @@ class FinishConfig:
 
 
 @dataclass(frozen=True)
+class AbortConfig:
+    """The watchdog of a running patrol and the way back to the dock."""
+
+    return_to_dock: bool = param(
+        True, doc='a watchdog return walks the taught route back to the dock; false: stop there'
+    )
+    min_battery: float = param(
+        0.2, min=0.0, max=1.0, doc='below this during a patrol: back to the dock (0: off)'
+    )
+    max_duration_min: float = param(
+        120.0, min=0.0, max=1440.0, unit='min', doc='a longer patrol goes back (0: off)'
+    )
+    hold_timeout_sec: float = param(
+        180.0,
+        min=0.0,
+        max=3600.0,
+        unit='s',
+        doc='blocked this long: back to the dock; off the route or lost: stop (0: off)',
+    )
+    nav_timeout_sec: float = param(
+        5.0, min=0.0, max=60.0, unit='s', doc='no navigation/status this long: fail (0: off)'
+    )
+    near_m: float = param(
+        2.0, min=0.2, max=10.0, unit='m', doc='waypoints this near can start the return'
+    )
+    dock_clearance_m: float = param(
+        1.0, min=0.0, max=5.0, unit='m', doc='the return ends this far from the route start'
+    )
+    pose_timeout_sec: float = param(
+        2.0, min=0.1, max=10.0, unit='s', doc='the map -> base pose for the return'
+    )
+
+
+@dataclass(frozen=True)
 class ScheduleConfig:
     """Patrols at fixed local times of the day."""
 
@@ -65,6 +99,7 @@ class PatrolConfig:
     battery_topic: str = param('/{robot_ns}/battery', live=False, doc='sensor_msgs/BatteryState')
     start: StartConfig = nested(StartConfig)
     finish: FinishConfig = nested(FinishConfig)
+    abort: AbortConfig = nested(AbortConfig)
     schedule: ScheduleConfig = nested(ScheduleConfig)
 
 

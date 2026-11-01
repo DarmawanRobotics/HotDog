@@ -119,7 +119,7 @@ ros2 service call /inspection/add_target hotdog_interfaces/srv/AddTarget \
 ros2 service call /route/stop std_srvs/srv/Trigger
 
 # patrol (from the dock), on demand or on a schedule
-ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 20261101_093000}"
+ros2 service call /patrol/start hotdog_interfaces/srv/StartPatrol "{route: 2026-11-01_09-30-00}"
 ros2 param set /patrol_node schedule.enabled true
 
 # emergency stop (latched): the M20 remote, or
