@@ -1,0 +1,17 @@
+/build/
+/install/
+/log/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# stack checkouts (vcs import, scripts/dev.sh import)
+/src/dharma/
+/src/external/
+
+# local settings
+.env
+*.swp
+.DS_Store
+/docs/build/

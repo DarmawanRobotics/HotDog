@@ -1,0 +1,64 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\input{tables/results}
+
+\textbf{Protocol.} E1--E4 close the loop over the pure cores at the node rates: the simulator
+core (acceleration limits, collisions, Mid-360 ray casting, odometry drift
+$\vect{\xi} \sim \mathcal{N}(\vect{0}, \boldsymbol{\Sigma}\,\Delta s)$, 50/20~ms sensor/command
+latency), perception, the follower with VFH and the mux, all with package defaults and ideal
+localization except in E3. Each condition runs seeds 1--20 (mean $\pm$ std);
+\texttt{experiments/} in the hub reproduces them.
+
+\textbf{E1: stopping distance.} At speed $v$ a person appears on the robot's axis $D(v) + m$
+ahead, the last point from which \eqref{eq:braking} promises a stop with the margin. With
+$v_h = 0$ the robot stopped \EOneZeroMeasuredA, \EOneZeroMeasuredB, \EOneZeroMeasuredC{} and
+\EOneZeroMeasuredD~m after the first scan showing it, against
+$D(v) =$ \EOneZeroModelA, \EOneZeroModelB, \EOneZeroModelC{} and \EOneZeroModelD~m at
+0.2--0.8~m/s, braking \EOneZeroReactMin--\EOneZeroReactMax~s after the appearance (inside
+$\tr$); with $v_h = \EOneHumanSpeed$~m/s, \EOneMeasuredA--\EOneMeasuredD~m; never closer than
+\EOneZeroClearMin~m.
+
+\textbf{E2: blind LiDAR.} At 0.5~m/s the LiDAR delivers clouds without points or with 50
+points for 4~s: v0.2 commanded zero within \ETwoBlindZeroMax~s and stood within
+\ETwoBlindDistanceMax~m; the v0.1 baseline (a blind scan read as free) drove on at full speed.
+A silent LiDAR stopped both at the 0.5~s timeout; in REMOTE v0.2 crept at \ETwoCreepMax~m/s,
+v0.1 kept 0.5~m/s.
+
+\textbf{E3: localization.} The follower drives three laps (\EThreeDistance~m) of the
+simulator's mall route with its drift scenario past four tags, detected at 5~Hz with the
+modelled noise plus 5\,\% outliers (5--25$^\circ$); the estimators share all inputs
+(Table~\ref{tab:loc}). Hard
+replacement rejected \EThreeHardReplaceInliersRejected\,\% of the good detections, as its
+0.5~m threshold on \frm{map}$\to$\frm{odom} grows with the distance from the odometry origin;
+the gate rejected \EThreeEkfTagsOutliersRejected\,\% of the outliers and
+\EThreeEkfTagsInliersRejected\,\% of the good detections.
+
+\begin{table}[t]
+  \centering
+  \caption{E3: position RMSE (ATE), largest position error, heading RMSE}
+  \label{tab:loc}
+  \footnotesize
+  \input{tables/e3}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{E4: completed runs, their time and stops; smallest clearance, largest offset}
+  \label{tab:shift}
+  \footnotesize
+  \setlength{\tabcolsep}{2.5pt}
+  \input{tables/e4}
+\end{table}
+
+\textbf{E4: path shift.} The follower drives 20~m along a 3~m corridor past a person standing on
+the route (\emph{on}) or two beside it, one walking ahead and one crossing; nobody gives way
+(Table~\ref{tab:shift}). A first run exposed defects, now fixed: path shift deadlocked or lost
+its offset while the robot stood (17/20 on the route, now 20/20), a walking person brushed the
+stopped robot (now 0.28~m), and a held robot was reported \textsc{following}. A second round
+swept the footprint along the command on the mux's points: beside the route reactive avoidance
+passed in 20 and no avoidance in 13 of 20 runs (8 and 7 before; the rest leave 0.07--0.12~m
+beside the body). On the route VFH still finds no gap wide enough and stops.
+
+\textbf{End to end.} On the real nodes (first round) the robot drove the 27~m mall route past
+two standing people in 83~s (79~s before), at least 0.23~m from them and 0.39~m from walls.

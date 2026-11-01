@@ -1,0 +1,368 @@
+% References of the Dharma paper and manual.
+% Every entry was checked against the record named in its "% verified:" comment (2026-10-24).
+% Fields that could not be confirmed (volume, pages) are left out rather than guessed.
+
+% ---------------------------------------------------------------- ROS, navigation frameworks
+
+% verified: arxiv.org/abs/2211.07752 (authors, DOI), openrobotics.org blog 2022-05-12 (journal)
+@article{macenski2022ros2,
+  author  = {Macenski, Steven and Foote, Tully and Gerkey, Brian and Lalancette, Chris and
+             Woodall, William},
+  title   = {Robot Operating System 2: Design, architecture, and uses in the wild},
+  journal = {Science Robotics},
+  year    = {2022},
+  doi     = {10.1126/scirobotics.abm6074}
+}
+
+% verified: arxiv.org/abs/2003.00368 (authors, DOI), docs.nav2.org/citations.html (venue)
+@inproceedings{macenski2020marathon2,
+  author    = {Macenski, Steven and Mart{\'i}n, Francisco and White, Ruffin and
+               Gin{\'e}s Clavero, Jonatan},
+  title     = {The {Marathon} 2: A Navigation System},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intelligent Robots and Systems (IROS)},
+  year      = {2020},
+  doi       = {10.1109/IROS45743.2020.9341207}
+}
+
+% verified: docs.nav2.org/citations.html, arxiv.org/abs/2307.15236
+@article{macenski2023survey,
+  author  = {Macenski, Steven and Moore, Tom and Lu, David V. and Merzlyakov, Alexey and
+             Ferguson, Michael},
+  title   = {From the desks of {ROS} maintainers: A survey of modern \& capable mobile robotics
+             algorithms in the {Robot Operating System} 2},
+  journal = {Robotics and Autonomous Systems},
+  year    = {2023}
+}
+
+% verified: docs.nav2.org/citations.html, arxiv.org/abs/2305.20026
+@article{macenski2023rpp,
+  author  = {Macenski, Steve and Singh, Shrijit and Mart{\'i}n, Francisco and Gin{\'e}s, Jonatan},
+  title   = {Regulated Pure Pursuit for Robot Path Tracking},
+  journal = {Autonomous Robots},
+  year    = {2023}
+}
+
+% verified: roswiki Papers/TePRA2013_Foote (pages, DOI)
+@inproceedings{foote2013tf,
+  author    = {Foote, Tully},
+  title     = {tf: The transform library},
+  booktitle = {Proc. IEEE Int. Conf. Technologies for Practical Robot Applications (TePRA)},
+  pages     = {1--6},
+  year      = {2013},
+  doi       = {10.1109/TePRA.2013.6556373}
+}
+
+% ---------------------------------------------------------------- odometry and localization
+
+% verified: hub.hku.hk/handle/10722/311739 (journal, year, DOI), arxiv.org/abs/2107.06829 (authors)
+@article{xu2022fastlio2,
+  author  = {Xu, Wei and Cai, Yixi and He, Dongjiao and Lin, Jiarong and Zhang, Fu},
+  title   = {{FAST-LIO2}: Fast Direct {LiDAR}-Inertial Odometry},
+  journal = {IEEE Transactions on Robotics},
+  year    = {2022},
+  doi     = {10.1109/TRO.2022.3141876}
+}
+
+% verified: github.com/ouguangjun/Leg-KILO (citation block), ieeexplore.ieee.org/document/10631676
+@article{ou2024legkilo,
+  author  = {Ou, Guangjun and Li, Dong and Li, Hanmin},
+  title   = {{Leg-KILO}: Robust Kinematic-Inertial-Lidar Odometry for Dynamic Legged Robots},
+  journal = {IEEE Robotics and Automation Letters},
+  volume  = {9},
+  number  = {10},
+  pages   = {8194--8201},
+  year    = {2024},
+  doi     = {10.1109/LRA.2024.3440730}
+}
+
+% verified: dspace.mit.edu/handle/1721.1/144041 (authors, venue, year, DOI)
+@inproceedings{shan2020liosam,
+  author    = {Shan, Tixiao and Englot, Brendan and Meyers, Drew and Wang, Wei and Ratti, Carlo
+               and Rus, Daniela},
+  title     = {{LIO-SAM}: Tightly-coupled Lidar Inertial Odometry via Smoothing and Mapping},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intelligent Robots and Systems (IROS)},
+  year      = {2020},
+  doi       = {10.1109/IROS45743.2020.9341176}
+}
+
+% verified: april.eecs.umich.edu/pdfs/olson2011a.pdf (title, author),
+% april.eecs.umich.edu/software/apriltag (ICRA 2011)
+@inproceedings{olson2011apriltag,
+  author    = {Olson, Edwin},
+  title     = {{AprilTag}: A robust and flexible visual fiducial system},
+  booktitle = {Proc. IEEE Int. Conf. Robotics and Automation (ICRA)},
+  year      = {2011}
+}
+
+% verified: april.eecs.umich.edu/pdfs/wang2016iros.pdf (title, authors),
+% april.eecs.umich.edu/software/apriltag (IROS 2016)
+@inproceedings{wang2016apriltag2,
+  author    = {Wang, John and Olson, Edwin},
+  title     = {{AprilTag} 2: Efficient and robust fiducial detection},
+  booktitle = {Proc. IEEE/RSJ Int. Conf. Intelligent Robots and Systems (IROS)},
+  year      = {2016}
+}
+
+% verified: api.openalex.org (doi 10.1109/robot.2009.5152375), dblp conf/icra/Olson09
+@inproceedings{olson2009csm,
+  author    = {Olson, Edwin B.},
+  title     = {Real-time correlative scan matching},
+  booktitle = {Proc. IEEE Int. Conf. Robotics and Automation (ICRA)},
+  pages     = {4387--4393},
+  year      = {2009},
+  doi       = {10.1109/ROBOT.2009.5152375}
+}
+
+% verified: jmvidal.cse.sc.edu/lib/thrun05a.html
+@book{thrun2005probabilistic,
+  author    = {Thrun, Sebastian and Burgard, Wolfram and Fox, Dieter},
+  title     = {Probabilistic Robotics},
+  publisher = {MIT Press},
+  year      = {2005}
+}
+
+% verified: doors.doshisha.ac.jp catalogue record BB10317810
+@book{barshalom2001estimation,
+  author    = {Bar-Shalom, Yaakov and Li, X.-Rong and Kirubarajan, Thiagalingam},
+  title     = {Estimation with Applications to Tracking and Navigation},
+  publisher = {John Wiley \& Sons},
+  address   = {New York},
+  year      = {2001},
+  isbn      = {9780471416555}
+}
+
+% verified: academic.oup.com/biomet/issue/41/1-2
+@article{page1954cusum,
+  author  = {Page, E. S.},
+  title   = {Continuous Inspection Schemes},
+  journal = {Biometrika},
+  volume  = {41},
+  number  = {1-2},
+  pages   = {100--115},
+  year    = {1954},
+  doi     = {10.1093/biomet/41.1-2.100}
+}
+
+% ---------------------------------------------------------------- mapping
+
+% verified: sfbtr8.spatial-cognition.de aigaion record 1226 (journal, volume, number, pages)
+@article{elfes1989occupancy,
+  author  = {Elfes, Alberto},
+  title   = {Using Occupancy Grids for Mobile Robot Perception and Navigation},
+  journal = {Computer},
+  volume  = {22},
+  number  = {6},
+  pages   = {46--57},
+  year    = {1989}
+}
+
+% verified: research.google/pubs/pub45466
+@inproceedings{hess2016cartographer,
+  author    = {Hess, Wolfgang and Kohler, Damon and Rapp, Holger and Andor, Daniel},
+  title     = {Real-Time Loop Closure in {2D} {LIDAR} {SLAM}},
+  booktitle = {Proc. IEEE Int. Conf. Robotics and Automation (ICRA)},
+  pages     = {1271--1278},
+  year      = {2016}
+}
+
+% verified: joss.theoj.org/papers/10.21105/joss.02783
+@article{macenski2021slamtoolbox,
+  author  = {Macenski, Steve and Jambrecic, Ivona},
+  title   = {{SLAM} Toolbox: {SLAM} for the dynamic world},
+  journal = {Journal of Open Source Software},
+  volume  = {6},
+  number  = {61},
+  pages   = {2783},
+  year    = {2021},
+  doi     = {10.21105/joss.02783}
+}
+
+% ---------------------------------------------------------------- planning, tracking, avoidance
+
+% verified: people.irisa.fr/Nicolas.Markey/biblio/tssc4(2)-HNR
+@article{hart1968astar,
+  author  = {Hart, Peter E. and Nilsson, Nils J. and Raphael, Bertram},
+  title   = {A Formal Basis for the Heuristic Determination of Minimum Cost Paths},
+  journal = {IEEE Transactions on Systems Science and Cybernetics},
+  volume  = {4},
+  number  = {2},
+  pages   = {100--107},
+  year    = {1968},
+  doi     = {10.1109/TSSC.1968.300136}
+}
+
+% verified: apps.dtic.mil/sti/pdfs/ADA255524.pdf (report documentation page)
+@techreport{coulter1992purepursuit,
+  author      = {Coulter, R. Craig},
+  title       = {Implementation of the Pure Pursuit Path Tracking Algorithm},
+  institution = {The Robotics Institute, Carnegie Mellon University},
+  number      = {CMU-RI-TR-92-01},
+  address     = {Pittsburgh, PA},
+  month       = jan,
+  year        = {1992}
+}
+
+% verified: ri.cmu.edu/publications/stanley-the-robot-that-won-the-darpa-grand-challenge
+@article{thrun2006stanley,
+  author  = {Thrun, Sebastian and Montemerlo, Michael and Dahlkamp, Hendrik and Stavens, David and
+             Aron, Andrei and others},
+  title   = {Stanley: The Robot that Won the {DARPA} {Grand Challenge}},
+  journal = {Journal of Field Robotics},
+  volume  = {23},
+  number  = {9},
+  pages   = {661--692},
+  year    = {2006}
+}
+
+% verified: experts.illinois.edu record (authors, pages, DOI)
+@inproceedings{williams2017mppi,
+  author    = {Williams, Grady and Wagener, Nolan and Goldfain, Brian and Drews, Paul and
+               Rehg, James M. and Boots, Byron and Theodorou, Evangelos A.},
+  title     = {Information theoretic {MPC} for model-based reinforcement learning},
+  booktitle = {Proc. IEEE Int. Conf. Robotics and Automation (ICRA)},
+  pages     = {1714--1721},
+  year      = {2017},
+  doi       = {10.1109/ICRA.2017.7989202}
+}
+
+% verified: mathworks.com trajectoryGeneratorFrenet reference list
+@inproceedings{werling2010frenet,
+  author    = {Werling, Moritz and Ziegler, Julius and Kammel, S{\"o}ren and Thrun, Sebastian},
+  title     = {Optimal Trajectory Generation for Dynamic Street Scenarios in a {Frenet} Frame},
+  booktitle = {Proc. IEEE Int. Conf. Robotics and Automation (ICRA)},
+  pages     = {987--993},
+  year      = {2010}
+}
+
+% verified: cs.utexas.edu copy of the paper (title page), aigaion record 958
+@article{borenstein1991vfh,
+  author  = {Borenstein, Johann and Koren, Yoram},
+  title   = {The Vector Field Histogram -- Fast Obstacle Avoidance for Mobile Robots},
+  journal = {IEEE Transactions on Robotics and Automation},
+  volume  = {7},
+  number  = {3},
+  pages   = {278--288},
+  year    = {1991}
+}
+
+% verified: arch.neicon.ru record (journal, volume, issue, pages, DOI)
+@article{khatib1986potential,
+  author  = {Khatib, Oussama},
+  title   = {Real-Time Obstacle Avoidance for Manipulators and Mobile Robots},
+  journal = {The International Journal of Robotics Research},
+  volume  = {5},
+  number  = {1},
+  pages   = {90--98},
+  year    = {1986},
+  doi     = {10.1177/027836498600500106}
+}
+
+% verified: research.itu.edu.tr publication record
+@article{sezer2012ftg,
+  author  = {Sezer, Volkan and Gokasan, Metin},
+  title   = {A novel obstacle avoidance algorithm: ``{Follow the Gap Method}''},
+  journal = {Robotics and Autonomous Systems},
+  volume  = {60},
+  number  = {9},
+  pages   = {1123--1134},
+  year    = {2012},
+  doi     = {10.1016/j.robot.2012.05.021}
+}
+
+% verified: rse-lab.cs.washington.edu abstract page (no page range given there)
+@article{fox1997dwa,
+  author  = {Fox, Dieter and Burgard, Wolfram and Thrun, Sebastian},
+  title   = {The Dynamic Window Approach to Collision Avoidance},
+  journal = {IEEE Robotics \& Automation Magazine},
+  volume  = {4},
+  number  = {1},
+  year    = {1997}
+}
+
+% ---------------------------------------------------------------- service robots among people
+
+% verified: publikationen.uni-tuebingen.de handle 10900/41386
+@article{kruse2013humanaware,
+  author  = {Kruse, Thibault and Pandey, Amit Kumar and Alami, Rachid and Kirsch, Alexandra},
+  title   = {Human-aware robot navigation: A survey},
+  journal = {Robotics and Autonomous Systems},
+  volume  = {61},
+  number  = {12},
+  pages   = {1726--1743},
+  year    = {2013},
+  doi     = {10.1016/j.robot.2013.05.007}
+}
+
+% verified: api.openalex.org (doi 10.1007/978-3-319-27702-8_40)
+@incollection{triebel2016spencer,
+  author    = {Triebel, Rudolph and Arras, Kai and Alami, Rachid and Beyer, Lucas and Breuers,
+               Stefan and Chatila, Raja and Chetouani, Mohamed and Cremers, Daniel and others},
+  title     = {{SPENCER}: A Socially Aware Service Robot for Passenger Guidance and Help in Busy
+               Airports},
+  booktitle = {Field and Service Robotics},
+  series    = {Springer Tracts in Advanced Robotics},
+  pages     = {607--622},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-27702-8_40}
+}
+
+% verified: rse-lab.cs.washington.edu abstract (authors, journal, volume, number),
+% DOI and online date (1999-11-29) from the datalearner record
+@article{burgard1999museum,
+  author  = {Burgard, Wolfram and Cremers, Armin B. and Fox, Dieter and H{\"a}hnel, Dirk and
+             Lakemeyer, Gerhard and Schulz, Dirk and Steiner, Walter and Thrun, Sebastian},
+  title   = {Experiences with an interactive museum tour-guide robot},
+  journal = {Artificial Intelligence},
+  volume  = {114},
+  number  = {1-2},
+  year    = {1999},
+  doi     = {10.1016/S0004-3702(99)00070-3}
+}
+
+% ---------------------------------------------------------------- safety
+
+% verified: nist.gov/node/1097971 (volume, pages, DOI; NIST gives the online date 2016-08-01)
+@article{marvel2016ssm,
+  author  = {Marvel, Jeremy A. and Norcross, Richard J.},
+  title   = {Implementing Speed and Separation Monitoring in Collaborative Robot Workcells},
+  journal = {Robotics and Computer-Integrated Manufacturing},
+  volume  = {44},
+  pages   = {144--155},
+  year    = {2016},
+  doi     = {10.1016/j.rcim.2016.08.001}
+}
+
+% verified: committee.iso.org/standard/73481.html
+@misc{iso13849,
+  author       = {{ISO}},
+  title        = {{ISO} 13849-1:2023, Safety of machinery -- Safety-related parts of control
+                  systems -- Part 1: General principles for design},
+  howpublished = {International Organization for Standardization},
+  year         = {2023}
+}
+
+% verified: iso.org/news/2016/03/Ref2057.html
+@misc{isots15066,
+  author       = {{ISO}},
+  title        = {{ISO/TS} 15066:2016, Robots and robotic devices -- Collaborative robots},
+  howpublished = {International Organization for Standardization},
+  year         = {2016}
+}
+
+% verified: iso.org/standard/53820.html
+@misc{iso13482,
+  author       = {{ISO}},
+  title        = {{ISO} 13482:2014, Robots and robotic devices -- Safety requirements for personal
+                  care robots},
+  howpublished = {International Organization for Standardization},
+  year         = {2014}
+}
+
+% verified: webstore.iec.ch/publication/5515
+@misc{iec61508,
+  author       = {{IEC}},
+  title        = {{IEC} 61508-1:2010, Functional safety of electrical/electronic/programmable
+                  electronic safety-related systems -- Part 1: General requirements},
+  howpublished = {International Electrotechnical Commission},
+  year         = {2010}
+}

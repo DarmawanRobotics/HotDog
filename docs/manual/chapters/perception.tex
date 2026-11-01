@@ -1,0 +1,141 @@
+\chapter{Perception}
+\label{ch:perception}
+
+\pkg{dharma_perception} turns the LiDAR into two sector scans in \param{robot.frames.base}: a
+front scan for reactive avoidance (\topic{perception/sector_scan}) and a fail-safe 360° scan for
+the protective field and the follower's motion guard (\topic{perception/safety_scan}). It also
+throttles the camera for the fiducial detector.
+
+\section{Sector scan semantics}
+
+A \code{SectorScan} holds the nearest obstacle per angular sector; sector $i$ is centred at
+\code{angle_min} $+ (i + \tfrac12)$ \code{angle_increment}. \texttt{ranges[i] >= range\_max} means
+nothing within range; \texttt{ranges[i] <= BLOCKED} (0) or NaN means blocked or unknown, and
+\emph{every consumer treats it as an obstacle at the robot}. Every sector is \code{BLOCKED}
+when:
+\begin{itemize}
+  \item the LiDAR is blind: fewer than \param{blind.min_points} points off the robot body, or
+    (with \param{blind.min_region_points}) one of \param{blind.regions} azimuth regions empty;
+  \item the sensor mount transform or, with \param{filter.level_source} \code{tf}, the roll and
+    pitch of the base (\frm{odom}$\to$\frm{base_link}) is missing;
+  \item processing raised an exception, or no usable cloud arrived for
+    \param{input.timeout_sec} (driver down, only malformed messages).
+\end{itemize}
+In 0.1 an all-zero scan was read as free by the protective field (review B1) and NaN sectors as
+free by the follower (F1); this convention removes both.
+
+\section{Pipeline}
+
+\begin{enumerate}
+  \item \textbf{Parse.} The serialized Livox \code{CustomMsg} is read with numpy (no per-point
+    Python objects; every length validated, both endiannesses). PointCloud2 goes through
+    \code{dharma_utils.ros.pointcloud.read_xyz}. A malformed message is dropped with a
+    throttled error (review \#4).
+  \item \textbf{Livox noise.} The tag byte marks each point per field (bits 0--1 adhesion
+    between objects, 2--3 rain, fog or dust, 4--5 other; 0 high, 1 medium, 2 low confidence).
+    Points at \param{filter.noise_level} in the enabled fields are dropped (review \#12).
+  \item \textbf{Self filter.} Points inside \param{robot.footprint} grown by
+    \param{filter.self_margin}.
+  \item \textbf{Level.} Points in \frm{base_link} are rotated by the roll and pitch of the base
+    in \frm{odom} at the cloud stamp, so the band is relative to the floor while the gait pitches
+    the body (finding P1).
+  \item \textbf{Height band.} \param{filter.height_min} to \param{filter.height_max} above the
+    floor, the floor being \param{robot.base_height} below \frm{base_link}. Optional
+    \param{filter.ground_segmentation} estimates the floor per cell (lowest point within a
+    maximum step) for ramps and thresholds.
+  \item \textbf{Sectors.} Each range is the $k$-th nearest point of the sector (\param{front.k},
+    \param{safety.k}, default 2): a single dust return does not stop the robot; a sector with
+    fewer than $k$ points is free.
+  \item \textbf{Obstacle memory.} Confirmed safety points are kept in \frm{odom} for
+    \param{memory.memory_sec} and merged into the safety scan while they are hidden below the
+    lowest beam; an odometry jump clears the memory (review B4).
+\end{enumerate}
+
+\textbf{Why levelling matters.} For a flat floor and \frm{base_link} at height $h$ pitched by
+$\vartheta$, a floor point at horizontal range $r$ appears at $z \approx -h + r\sin\vartheta$ and
+enters the band at
+\begin{equation}
+  r > r_{\mathrm{false}} = \frac{h + z_{\min}}{\sin\vartheta}.
+\end{equation}
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+  \toprule
+  Band margin $h + z_{\min}$ & $\vartheta = 1^\circ$ & $2^\circ$ & $3^\circ$ & $5^\circ$ \\
+  \midrule
+  10~cm & 5.7~m & 2.9~m & 1.9~m & 1.15~m \\
+  5~cm & 2.9~m & 1.4~m & 0.96~m & 0.57~m \\
+  \bottomrule
+\end{tabular}
+\end{center}
+A trotting legged robot pitches by a few degrees, so in \frm{base_link} the floor became an
+obstacle within the 4~m safety range (false stops), and pitching up hid low obstacles (missed
+detections). The 0.1 configuration also assumed $h = 0.35$~m in one file and 0.30~m in another;
+both now come from the profile.
+
+\section{Limits}
+\label{sec:perception-limits}
+
+\begin{itemize}
+  \item \textbf{Near-field blind zone.} A Mid-360 sees down to $-7^\circ$: mounted 0.53~m above
+    the floor it sees a 10~cm object only beyond about 3.5~m. The memory keeps objects seen
+    earlier, but an object that appears inside the zone (placed there, or the robot switched on
+    next to it) is not seen. Use a pitched mount or a near-field sensor (bumper, ToF, 2D
+    scanner) where this matters.
+  \item \textbf{Negative obstacles} (stairs down, holes, platform edges) are not detected:
+    missing floor is not an obstacle.
+  \item \textbf{Motion distortion.} The scan is not deskewed: a Mid-360 frame spans 100~ms, so
+    a point is up to $v \cdot 0.1$~m off (8~cm at 0.8~m/s) and turning at $\omega$ moves a point
+    at range $r$ by up to $0.1\,\omega r$. The latency from the first point to the published scan
+    is the frame (100~ms), driver and transport (about 5--10~ms) and processing (about
+    10--15~ms for 20k points on one desktop core); \param{robot.limits.reaction_time} must stay
+    above it and the field margins above the distortion.
+  \item \textbf{Quantization.} The nearest point of a sector stands for the whole sector: 72
+    safety sectors are 5° wide (lateral error up to $r\Delta\theta/2$: 8.7~cm at 2~m, 17.5~cm at
+    4~m). Raise \param{safety.num_sectors} for a finer field.
+  \item This is a software channel; it does not replace a safety-rated scanner
+    (Section~\ref{sec:two-channel}).
+\end{itemize}
+
+\section{ArUco markers}
+\label{sec:aruco}
+
+\code{aruco_detector_node} is the drop-in for \code{apriltag_ros} when the site uses printed
+ArUco markers (\code{fiducials_detector:=aruco}); it reads the same throttled camera. It detects
+the markers of \param{ids} in \param{dictionary} with OpenCV's \code{cv2.aruco} (the APIs of
+OpenCV 4.2 on Foxy and of 4.7 and later), estimates each pose from the four corners with
+\code{solvePnP} (IPPE\_SQUARE, edge length \param{sizes}) and broadcasts
+$\T{camera}{tag}$ under the image's frame at the image stamp. OpenCV's marker frame ($x$ right,
+$y$ up, $z$ toward the viewer) is turned by $\pi$ about $z$ into the convention of
+\code{apriltag_ros} and of the site tag files ($z$ toward the viewer, $x$ to its left, $y$
+down),
+\begin{equation}
+  \T{camera}{tag} = \T{camera}{marker}\,\operatorname{diag}(-1, -1, 1, 1),
+\end{equation}
+so localization and docking take either detector and a site's \code{tags.json} works with both.
+Poses beyond \param{max_distance} are dropped. Images are read as mono8, rgb8, bgr8, rgba8 or
+bgra8 straight from \code{sensor_msgs/Image} (row padding handled, no \code{cv_bridge}). The
+default publishes marker 4 of \code{DICT_4X4_50} (15~cm) as \frm{charging_dock}, the frame
+docking uses (Section~\ref{sec:docking}). A 15~cm marker at 1.2~m gives the plate normal to a
+few degrees in the synthetic-image test; docking smooths it over detections.
+
+\section{Nodes and parameters}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}p{0.30\textwidth}X@{}}
+  \toprule
+  Node & Role \\
+  \midrule
+  \code{lidar_sector_node} & Livox \code{CustomMsg} (raw bytes, default) or PointCloud2 in;
+    \topic{perception/sector_scan}, \topic{perception/safety_scan}, \topic{perception/obstacles}
+    out \\
+  \code{apriltag_throttle} & camera image and info in, image at \code{rate_hz} out \\
+  \code{apriltag} (\code{apriltag_ros}) & tag frames on TF for localization and docking \\
+  \code{aruco_detector_node} & ArUco markers on the throttled camera as TF frames, same
+    convention (\code{fiducials_detector:=aruco}) \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+\readonlynote
+
+\input{generated/params_perception}

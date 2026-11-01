@@ -1,0 +1,113 @@
+% Dharma technical manual.
+% Build: make -C docs manual  (output: docs/build/manual/dharma_manual.pdf)
+\documentclass[11pt,a4paper,oneside]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[scaled=0.92]{helvet}
+\usepackage{courier}
+\usepackage[margin=2.3cm,headheight=14pt]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,tabularx,array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{pdflscape}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage[hyphens]{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cite}
+
+\input{../authors}
+\input{../macros}
+
+\graphicspath{{../diagrams/pdf/}}
+
+% Identifiers (topics, parameters, packages) with raw underscores, breakable at / _ . -
+\makeatletter
+\g@addto@macro\UrlBreaks{\do\_\do\.\do\-}
+\makeatother
+\newcommand{\code}[1]{\nolinkurl{#1}}
+\renewcommand{\pkg}[1]{\code{#1}}
+\renewcommand{\topic}[1]{\code{#1}}
+\renewcommand{\frm}[1]{\code{#1}}
+\renewcommand{\param}[1]{\code{#1}}
+
+\titleformat{\chapter}[display]{\sffamily\bfseries\huge}{\large\chaptertitlename\
+  \thechapter}{8pt}{}
+\titleformat{\section}{\sffamily\bfseries\Large}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\sffamily\bfseries\large}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\sffamily\bfseries}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily\small Dharma \DharmaVersion\ technical manual}
+\fancyhead[R]{\sffamily\small\nouppercase{\leftmark}}
+\fancyfoot[C]{\sffamily\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.15}
+\captionsetup{font=small,labelfont=bf}
+
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,breaklines=true,
+  showstringspaces=false,
+  frame=single,rulecolor=\color{black!30},backgroundcolor=\color{black!3},
+  xleftmargin=4pt,xrightmargin=4pt,aboveskip=6pt,belowskip=6pt}
+
+% "Read-only at runtime" marker of the generated parameter tables
+\newcommand{\readonlynote}{Parameters marked $^\dagger$ are read-only at runtime
+  (\code{live=False}); every other one can be changed with \texttt{ros2 param set} and is
+  validated before it applies.}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\sffamily\bfseries\Huge Dharma\par}
+  \vspace{0.6cm}
+  {\sffamily\Large A robot-agnostic ROS~2 autonomy stack\par}
+  \vspace{0.3cm}
+  {\sffamily\large Technical manual, version \DharmaVersion\par}
+  \vspace{2.5cm}
+  {\large \DharmaAuthor\par}
+  \vspace{0.3cm}
+  {\small \DharmaAffilOne\\ \DharmaAffilTwo\\ \DharmaEmail\par}
+  \vfill
+  {\small Architecture, models, configuration, interfaces, the safety case and the development
+  guide of the 0.2.0 stack.\par}
+\end{titlepage}
+
+\tableofcontents
+
+\input{chapters/introduction}
+\input{chapters/architecture}
+\input{chapters/configuration}
+\input{chapters/odometry}
+\input{chapters/localization}
+\input{chapters/perception}
+\input{chapters/mapping}
+\input{chapters/navigation}
+\input{chapters/control}
+\input{chapters/health}
+\input{chapters/simulation}
+\input{chapters/rviz}
+\input{chapters/interfaces}
+\input{chapters/development}
+
+\appendix
+\input{chapters/traceability}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

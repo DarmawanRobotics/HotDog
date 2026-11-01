@@ -1,0 +1,122 @@
+\chapter{Mapping and sites}
+\label{ch:mapping}
+
+\pkg{dharma_mapping} records occupancy maps from the LiDAR-inertial odometry, manages sites
+(one directory per mapped place with its map, the fiducials that anchor it and its routes) and
+teaches routes.
+
+\section{Sites}
+
+\begin{lstlisting}
+<sites_dir>/<site>/
+  map.yaml, map.pgm            occupancy map (map_server format)
+  map.yaml.bak, map.pgm.bak    the previous map (a loadable pair)
+  tags.json                    fiducial poses in the map frame (localization/record_tags)
+  routes/<date>_<time>.csv     taught routes (x, y, yaw_deg, dwell_sec > 0: stop point)
+  backup-<time>[-n]/           what a mapping reset archived
+\end{lstlisting}
+
+A site's map frame is the frame its fiducials were recorded in. Site names match
+\code{^[a-z0-9][a-z0-9_-]{0,47}$}; every path is derived from \param{sites_dir} and a site name,
+never taken from a request (review \#12). The map pair is written crash safe: a temporary
+directory, fsync, rename; the YAML records the image size and a CRC, so a torn pair is refused
+on load and the \code{.bak} pair is used (review \#5). A reset archives the old site into a
+unique \code{backup-<time>[-n]} directory, after all preconditions were checked (review \#13).
+Broken site files are notes in \topic{site/status}, never a crash (review \#7).
+
+\section{Occupancy grid}
+
+\subsection{Log-odds model}
+
+For a cell with occupancy probability $p$ the grid stores $l = \log\frac{p}{1-p}$:
+\begin{equation}
+  l_t = \mathrm{clip}\Big(l_{t-1} + \begin{cases} l_{\mathrm{hit}} = 0.85 & \text{cell hit}\\
+  l_{\mathrm{miss}} = -0.4 & \text{cell crossed by a ray} \end{cases},\ [-2.0,\ 3.5]\Big).
+\end{equation}
+A cell is occupied above $\mathrm{logit}(0.65) = 0.619$ (a single hit suffices) and free below
+$\mathrm{logit}(0.35) = -0.619$ (two rays). A saturated cell becomes free only after
+$\lceil (3.5 + 0.619)/0.4 \rceil = 11$ crossing rays, about 5.5~s of observation at 2~Hz, so a
+person standing still for long while mapping stays in the map. Free space is carved only up to
+the nearest hit per angular bin (\param{scan.angular_bins}, 720): glass and open doors are not
+cleared. This is conservative by design.
+
+\subsection{Which scans and points are integrated}
+
+\begin{itemize}
+  \item \textbf{Height band.} Points between \param{scan.height_min} and \param{scan.height_max}
+    above the floor, measured in the map frame (floor = \frm{base_link} height in the map minus
+    \param{robot.base_height}). This needs a level map frame: localization levels \frm{odom}
+    with the IMU, so map and \frm{odom} are gravity-aligned and a pitching body never turns the
+    floor into walls (finding O1).
+  \item \textbf{Self filter.} Points inside the footprint grown by \param{scan.self_margin}.
+  \item \textbf{Correction gate.} A scan is skipped when \frm{map}$\to$\frm{odom} changes within
+    \param{gate.correction_window_sec} around it by more than \param{gate.correction_tol_m} or
+    \param{gate.correction_tol_deg}: its TF pose may be the old, the new or a blend of both
+    (review \#14).
+  \item \textbf{Jump gate.} A sensor that moved more than $d_{\max} + v_{\max}\Delta t$ (or turned
+    more than $\psi_{\max} + \omega_{\max}\Delta t$) since the previous scan jumped (odometry
+    reset, bad correction). Integration then holds until a scan agrees with the map at its pose
+    again (score above \param{gate.resume_score}), so a jump never smears the map or grows the
+    grid (finding M1, review \#8).
+  \item \textbf{Growth cap.} The grid grows in steps of \param{grid.grow_m} and never beyond
+    \param{grid.max_size_m} per side; hits beyond are dropped. In 0.1 a 300~m odometry jump grew
+    the grid to 109~MB.
+  \item \textbf{Optional refinement} (\param{refine.enabled}, off by default). The TF pose is
+    matched on the current grid before integrating, gated on score and ambiguity. It sharpens
+    walls under small pose errors, but its ambiguity gate separates a corridor from a room only
+    by a factor of two, so it stays off until a test shows it helps.
+\end{itemize}
+
+There is no loop closure: map quality equals odometry plus localization quality. A pose graph
+over scan matches, with tags as landmarks, is future work.
+
+\subsection{Mapping sessions}
+
+\code{mapping/start} on a new site (or with \code{reset}) maps in the current map frame, or
+takes the current pose as origin when not localized. Continuing a site that already has a map
+or tags needs the robot localized in \emph{its} frame: on one of its tags or by a pose estimate
+on its map; an \code{origin} localization at boot does not count (review \#9). The session
+remembers its site and refuses a save into another one; a stop that the mapper does not confirm
+is a failure (review \#4).
+
+\section{Route teaching}
+
+\code{route_recorder_node} (moved here from \pkg{dharma_odometry}: routes are site data) samples
+\frm{map}$\to$\frm{base_link} while \code{route/start} is active and writes
+\code{<site>/routes/<date>_<time>.csv} incrementally and atomically
+(\code{dharma_utils.io.write_route}). It records only while \topic{localization/status} is
+\code{LOCALIZED} (a TF that exists is not a localization); \code{route/mark_stop_point} makes the
+current pose a stop point with \code{dwell_sec}; file errors make the service fail instead of
+killing the node.
+
+\section{Interfaces}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}p{0.30\textwidth}p{0.24\textwidth}X@{}}
+  \toprule
+  Interface & Type & \\
+  \midrule
+  \topic{/map} & OccupancyGrid, latched & the site map, or the live grid while mapping (only
+    publisher: site manager) \\
+  \topic{mapping/grid} & OccupancyGrid, latched & the live grid \\
+  \topic{mapping/status} & MappingStatus, latched & scans, rejected, size, known area \\
+  \topic{site/status} & SiteStatus, latched & site, sites, map, mapping, tags, routes, notes \\
+  \topic{route/saved} & String & path of a saved route \\
+  \topic{site/list}, \topic{site/load} & ListSites, LoadSite & another site resets localization \\
+  \topic{mapping/start} & StartMapping & \code{reset} archives the old site \\
+  \topic{mapping/stop}, \topic{mapping/save} & Trigger & \\
+  \topic{route/start}, \topic{route/stop} & Trigger & refused unless \code{LOCALIZED} \\
+  \topic{route/mark_stop_point} & MarkStopPoint & \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+Used: \topic{localization/status}, \topic{localization/load_tags} (a path inside
+\param{sites_dir}), \topic{localization/start}, \topic{reset}, \topic{assume_origin}. Internal:
+\topic{grid_mapper/start|stop|save|load} (site names only).
+
+\section{Parameters}
+
+\readonlynote
+
+\input{generated/params_mapping}

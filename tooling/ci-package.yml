@@ -1,0 +1,126 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit
+      - run: |
+          pre-commit run --all-files --show-diff-on-failure > lint.log 2>&1 || {
+            cat lint.log
+            msg=$(tail -c 20000 lint.log | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+            echo "::error title=Lint failed::$msg"
+            exit 1
+          }
+          cat lint.log
+
+  build-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [foxy, humble, jazzy]
+    container: ros:${{ matrix.distro }}-ros-base
+    env:
+      REPO: ${{ github.event.repository.name }}
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      ROS_LOCALHOST_ONLY: "1" # foxy, humble
+      ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST # jazzy
+      PYTHONUNBUFFERED: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Annotation helper
+        run: |
+          cat > /usr/local/bin/report <<'SH'
+          #!/usr/bin/env bash
+          # report <title> <log>: the end of a log as one error annotation
+          msg=$(tail -c 20000 "$2" | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+          echo "::error title=$1::$msg"
+          SH
+          chmod +x /usr/local/bin/report
+      - name: Refresh the ROS apt key (frozen end-of-life image)
+        if: matrix.distro == 'foxy'
+        run: |
+          # ros:foxy-ros-base was frozen in 2023 with the ROS apt key that expired in 2025.
+          python3 -c "import urllib.request as u; u.urlretrieve('https://raw.githubusercontent.com/ros/rosdistro/master/ros.key', '/tmp/ros.key')"
+          keyrings=$(grep -rh packages.ros.org /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null \
+            | grep -oP 'signed-by=\K[^ \]]+' | sort -u || true)
+          for keyring in ${keyrings:-/usr/share/keyrings/ros-archive-keyring.gpg}; do
+            gpg --batch --yes --dearmor -o "$keyring" /tmp/ros.key
+            echo "refreshed $keyring"
+          done
+          if [ -z "$keyrings" ]; then apt-key add /tmp/ros.key; fi
+      - uses: actions/checkout@v4
+        with:
+          path: src/${{ env.REPO }}
+      - name: Dharma dependencies (same branch when it exists)
+        env:
+          DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
+        run: |
+          apt-get update && apt-get install -y python3-vcstool git
+          auth="https://x-access-token:${DHARMA_TOKEN}@github.com/"
+          git config --global url."$auth".insteadOf "https://github.com/"
+          git config --global --add url."$auth".insteadOf "git@github.com:"
+          if [ -f "src/$REPO/deps.repos" ]; then vcs import src < "src/$REPO/deps.repos"; fi
+          for dep in src/*/; do
+            [ "$dep" = "src/$REPO/" ] && continue
+            if git -C "$dep" ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+              git -C "$dep" fetch -q origin "$BRANCH" && git -C "$dep" checkout -q FETCH_HEAD
+              echo "$dep -> $BRANCH"
+            fi
+          done
+      - name: ROS dependencies
+        run: |
+          apt-get update
+          rosdep update --rosdistro "$ROS_DISTRO" --include-eol-distros
+          # python3-loguru has no focal package: installed below
+          rosdep install --from-paths src --ignore-src -y --rosdistro "$ROS_DISTRO" \
+            --skip-keys "livox_ros_driver2 fast_lio legkilo python3-loguru" > rosdep.log 2>&1 || {
+            cat rosdep.log
+            report "rosdep failed ($ROS_DISTRO)" rosdep.log
+            exit 1
+          }
+          cat rosdep.log
+          # focal (Foxy) has no python3-loguru: install it with pip there
+          if ! apt-get install -y python3-loguru; then
+            apt-get install -y python3-pip && pip3 install loguru
+          fi
+      - name: Build
+        run: |
+          source "/opt/ros/$ROS_DISTRO/setup.bash"
+          colcon build --event-handlers console_cohesion+ > build.log 2>&1 || {
+            cat build.log
+            report "Build failed ($ROS_DISTRO)" build.log
+            exit 1
+          }
+          cat build.log
+      - name: Test
+        run: |
+          source "/opt/ros/$ROS_DISTRO/setup.bash"
+          source install/setup.bash
+          packages=$(colcon list --base-paths "src/$REPO" --names-only | xargs)
+          status=0
+          colcon test --packages-select $packages --executor sequential \
+            --event-handlers console_cohesion+ > test.log 2>&1 || status=1
+          colcon test-result --verbose >> test.log 2>&1 || status=1
+          cat test.log
+          if [ "$status" -ne 0 ]; then
+            report "Tests failed ($ROS_DISTRO)" test.log
+            exit 1
+          fi

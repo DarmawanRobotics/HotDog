@@ -1,0 +1,40 @@
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Navigation frameworks.} ROS~2~\cite{macenski2022ros2} and its navigation system
+Nav2~\cite{macenski2020marathon2,macenski2023survey} provide behaviour-tree navigation,
+costmap layers, planners and controllers such as regulated pure pursuit~\cite{macenski2023rpp}.
+Dharma is smaller in scope and complementary: it targets a robot class (legged and
+omnidirectional service robots driven through a velocity interface) and puts the emphasis on a
+single robot description, uncertainty-aware localization and a separate safety layer whose
+limits are derived from the same braking model as the planner and the follower. The transform
+library tf~\cite{foote2013tf} carries every frame; we add per-edge age diagnosis on top.
+
+\textbf{LiDAR-inertial odometry.} FAST-LIO2~\cite{xu2022fastlio2} is an iterated error-state
+Kalman filter with direct point-to-plane updates; LIO-SAM~\cite{shan2020liosam} uses smoothing
+and mapping; Leg-KILO~\cite{ou2024legkilo} adds leg kinematics for dynamic legged robots. These
+estimators take their world frame from the first IMU samples, so a robot that starts tilted
+produces a tilted world; Dharma levels it explicitly in a static bridge.
+
+\textbf{Fiducial localization and scan matching.} AprilTag~\cite{olson2011apriltag,
+wang2016apriltag2} gives the pose of a known marker; the EKF formulation and chi-square gating
+follow~\cite{barshalom2001estimation,thrun2005probabilistic}. Correlative scan matching on a
+likelihood field~\cite{olson2009csm} supplies continuous corrections against the map.
+Occupancy grids~\cite{elfes1989occupancy} with log-odds updates are the map representation;
+graph-based systems such as Cartographer~\cite{hess2016cartographer} and SLAM
+Toolbox~\cite{macenski2021slamtoolbox} close loops, which Dharma leaves for future work.
+
+\textbf{Planning, tracking and reactive avoidance.} A*~\cite{hart1968astar} on an inflated
+costmap, pure pursuit~\cite{coulter1992purepursuit}, the Stanley
+controller~\cite{thrun2006stanley} and MPPI~\cite{williams2017mppi} are the path-level
+building blocks; vector field histograms~\cite{borenstein1991vfh}, potential
+fields~\cite{khatib1986potential}, follow-the-gap~\cite{sezer2012ftg} and the dynamic window
+approach~\cite{fox1997dwa} are classical reactive methods. Lateral offsets in a Frenet
+frame~\cite{werling2010frenet} let a robot pass an obstacle while keeping its route.
+
+\textbf{Safety.} Speed and separation monitoring limits speed so the robot can stop before a
+person reaches it~\cite{isots15066,marvel2016ssm}. Certified functions follow ISO
+13849-1~\cite{iso13849} or IEC 61508~\cite{iec61508}, and personal care robots
+ISO 13482~\cite{iso13482}. Dharma's protective field is a software channel modelled on speed
+and separation monitoring; it is explicitly the second channel next to a hardware e-stop and a
+safety-rated scanner, not a certified function.

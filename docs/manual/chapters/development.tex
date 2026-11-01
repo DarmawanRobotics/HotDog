@@ -1,0 +1,373 @@
+\chapter{Development}
+\label{ch:dev}
+
+\section{Package layout}
+
+\begin{lstlisting}
+<pkg>/
+  <pkg>/
+    __init__.py
+    <name>_node.py        thin ROS nodes: parameters, pubs/subs, services, timers, conversions
+    core/                 pure Python + numpy: algorithms, models, state machines, configs
+      config.py           configuration dataclasses (dharma_utils.config.param)
+      <topic>/            sub-packages for families (controllers/, avoidance/, follower/ ...)
+    utils/                ROS-side helpers of this package: msg <-> core conversions, markers
+  config/<pkg>.yaml       defaults (only what differs from the dataclass defaults, plus docs)
+  launch/<pkg>.launch.py
+  test/unit/test_*.py     pytest on core/ without ROS
+  test/ros/test_*.py      rclpy in-process node tests
+  test/test_style.py      dharma_utils.testing.check_package
+  package.xml  setup.py  setup.cfg  resource/<pkg>  README.md  CHANGELOG.md
+\end{lstlisting}
+
+\begin{itemize}
+  \item \code{core/} never imports \code{rclpy}, ROS messages, tf2 or launch; nodes convert messages
+    to core types (numpy arrays, \code{Pose2D}, dataclasses) at the edge.
+  \item Modules have at most 300 lines (tests 400), one class per algorithm. Families are OOP: an
+    abstract base class in \code{base.py}, one implementation per file, a
+    \code{dharma_utils.plugins.Registry} in \code{__init__.py}, open to entry points so a product
+    adds an implementation without forking.
+  \item Nodes subclass \code{dharma_utils.ros.DharmaNode} and start with \code{run(MyNode)}:
+    \code{declare_config}, \code{declare_robot}, \code{self.log}, \code{self.tf} (with per-edge
+    ages), \code{self.every()} (exception-guarded timers), shutdown hooks.
+  \item \code{setup.py} uses \code{find_packages(exclude=['test','test.*'])} and
+    \code{extras_require}\texttt{=\{'test': ['pytest']\}}: without a pytest test dependency colcon runs no
+    tests and Jazzy CI fails with exit code~5.
+\end{itemize}
+
+\section{Adding a plugin}
+\label{sec:plugin-example}
+
+Algorithm families are open to other packages through Python entry points
+(\code{dharma_utils.plugins.Registry}): a product adds an implementation without forking.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+  \toprule
+  Family & Base class & Entry point group & Selected by \\
+  \midrule
+  path controllers & \code{PathController} & \code{dharma.controllers} &
+    \param{controller} of \code{path_follower_node} \\
+  avoidance policies & \code{AvoidancePolicy} & \code{dharma.avoidance} &
+    \param{policy} of \code{obstacle_avoidance_node} \\
+  health checks & \code{Check} & \code{dharma_health.checks} &
+    \param{extra_checks} of \code{health_monitor_node} \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+The node looks the name up in the registry, which loads every entry point of its group on first
+use and checks that the class derives from the base class; an unknown name is refused with the
+list of available ones. \code{path_follower_node} declares the \code{Config} dataclass of every
+registered controller as parameters \code{<name>.*} at start, so a plugin controller's
+parameters have descriptors, ranges and live validation like the built-in ones. In 0.2.0 a
+plugin avoidance policy runs with its \code{Config} defaults (the node declares parameters only
+for the built-in policies), and a plugin health check is built without arguments.
+
+\subsection{Example: a controller package}
+
+A complete package \code{acme_controllers} with one controller, \code{carrot_p}, that turns
+toward a point ahead on the route in proportion to its bearing:
+\begin{lstlisting}
+acme_controllers/
+  acme_controllers/__init__.py         (empty)
+  acme_controllers/carrot_p.py
+  test/test_carrot_p.py
+  resource/acme_controllers            (empty, ament index marker)
+  package.xml  setup.py  setup.cfg
+\end{lstlisting}
+
+\code{acme_controllers/carrot_p.py}: a frozen configuration dataclass and the controller. The base
+class applies the avoidance biases and the path shift offset is in the request, so
+\code{compute} only tracks the (offset) route.
+\begin{lstlisting}[language=Python]
+"""Carrot P: turn toward a point ahead on the route, proportionally to its bearing."""
+
+from dataclasses import dataclass
+import math
+
+from dharma_navigation.core.controllers import Command, PathController, TrackRequest
+from dharma_navigation.core.controllers.base import carrot, to_body
+from dharma_utils.config import param
+
+
+@dataclass(frozen=True)
+class CarrotPConfig:
+    """Parameters, declared as carrot_p.* on path_follower_node."""
+
+    lookahead: float = param(0.8, min=0.1, max=5.0, unit='m', doc='carrot ahead on the route')
+    gain: float = param(1.5, min=0.0, max=10.0, unit='1/s', doc='yaw rate per rad of bearing')
+
+
+class CarrotPController(PathController):
+    """Drive at the requested speed, slower when the carrot is off to the side."""
+
+    Config = CarrotPConfig
+
+    def compute(self, request: TrackRequest) -> Command:
+        """Return the forward speed and a yaw rate proportional to the carrot bearing."""
+        x, y = to_body(request.pose, carrot(request, self.config.lookahead))
+        bearing = math.atan2(y, x)
+        speed = request.speed * max(0.0, math.cos(bearing))
+        return Command(speed, 0.0, self.clamp_wz(self.config.gain * bearing))
+\end{lstlisting}
+
+\code{setup.py} registers the class under the group (no decorator: the entry point is the
+registration):
+\begin{lstlisting}[language=Python]
+from setuptools import find_packages, setup
+
+setup(
+    name='acme_controllers',
+    version='0.1.0',
+    packages=find_packages(exclude=['test', 'test.*']),
+    data_files=[
+        ('share/ament_index/resource_index/packages', ['resource/acme_controllers']),
+        ('share/acme_controllers', ['package.xml']),
+    ],
+    install_requires=['setuptools'],
+    extras_require={'test': ['pytest']},
+    zip_safe=True,
+    maintainer='ACME Robotics',
+    maintainer_email='dev@example.com',
+    description='A path controller plugin for Dharma.',
+    license='Apache-2.0',
+    entry_points={
+        'dharma.controllers': ['carrot_p = acme_controllers.carrot_p:CarrotPController'],
+    },
+)
+\end{lstlisting}
+
+\code{package.xml} declares \code{<exec_depend>dharma_navigation</exec_depend>},
+\code{<test_depend>python3-pytest</test_depend>} and \code{<build_type>ament_python</build_type>};
+\code{setup.cfg} has the usual \code{script_dir} / \code{install_scripts} lines.
+\code{test/test_carrot_p.py} checks the registration and the behaviour on a kinematic robot:
+\begin{lstlisting}[language=Python]
+import math
+
+from acme_controllers.carrot_p import CarrotPController
+from dharma_navigation.core.controllers import CONTROLLERS, ControllerLimits, TrackRequest
+from dharma_navigation.core.path.route import Route
+from dharma_utils.io import RoutePoint
+from dharma_utils.math import Pose2D
+
+
+def test_registered_through_the_entry_point():
+    assert CONTROLLERS.get('carrot_p') is CarrotPController
+
+
+def test_converges_onto_a_straight_route():
+    route = Route.from_points([RoutePoint(0.1 * i, 0.0) for i in range(101)])
+    controller = CarrotPController(limits=ControllerLimits(max_wz=1.0))
+    pose, dt = Pose2D(0.0, 0.5, 0.0), 0.05
+    for _ in range(200):
+        s = max(0.0, min(pose.x, route.length))
+        cmd = controller.update(TrackRequest(route, s, pose, speed=0.5, dt=dt))
+        yaw = pose.yaw + cmd.wz * dt
+        x = pose.x + cmd.vx * math.cos(yaw) * dt
+        pose = Pose2D(x, pose.y + cmd.vx * math.sin(yaw) * dt, yaw)
+    assert abs(pose.y) < 0.05 and pose.x > 3.0
+\end{lstlisting}
+
+Build it next to the stack and select it in the product's parameter file:
+\begin{lstlisting}
+colcon build --packages-select acme_controllers
+colcon test --packages-select acme_controllers && colcon test-result --verbose
+\end{lstlisting}
+\begin{lstlisting}
+path_follower_node:
+  ros__parameters:
+    controller: carrot_p
+    carrot_p: {lookahead: 0.8, gain: 1.5}
+\end{lstlisting}
+\texttt{ros2 param describe /path\_follower\_node carrot\_p.lookahead} then shows the description,
+unit and range, and \texttt{ros2 param set /path\_follower\_node carrot\_p.gain -1.0} is refused
+with the range. The controller can also be switched at runtime (\param{controller} is live); the
+follower rebuilds it with the robot's limits. An avoidance policy works the same way: subclass
+\code{AvoidancePolicy}, implement \texttt{compute(angles, ranges, scan)} returning an
+\code{AvoidanceOut} (blocked and unknown sectors arrive as range 0) and register it under
+\code{dharma.avoidance}.
+
+\section{Code style}
+
+\begin{itemize}
+  \item English, clean, readable; one-line docstrings on public classes and functions; comments
+    only where the code cannot say it. No commented-out code, no \code{print}, no bare
+    \code{except}.
+  \item Type hints on public functions; frozen dataclasses for data and configuration; \code{Enum}
+    for states; no mutable default arguments.
+  \item Units in names or docstrings (\code{_sec}, \code{_m}, \code{_deg}); radians internally.
+  \item Python 3.8 and numpy 1.17 compatible (Foxy): \code{from __future__ import annotations}
+    first in every module (ruff's \code{FA} rule with \code{target-version = "py38"}), so hints
+    keep \code{tuple[str, ...]} and \code{float | None}; no 3.9+ runtime features
+    (\code{zip(strict=)}, \code{itertools.pairwise}, \code{functools.cache}, runtime
+    \code{list[int]} or \code{X | Y}, \code{str.removeprefix}, \code{match}) and no numpy 2 APIs;
+    \code{dharma_utils.math.default_rng} instead of \code{np.random.default_rng}.
+  \item Distribution differences only through \code{dharma_utils.ros}: \code{compat} (rclpy
+    init and shutdown, parameter descriptors, executors, the TF buffer) and \code{launch}
+    (\code{node(respawn=, ros_arguments=)}, \code{group(forwarding=)}, \code{node_overrides});
+    a package never branches on the distribution. \code{check_package} reports what is left.
+  \item Short functions: ruff's pylint rules (branches, statements, complexity 12) are on; split
+    instead of adding \code{noqa}.
+\end{itemize}
+
+\section{Lint and format}
+
+The same pre-commit hooks run locally and in CI: whitespace and end-of-file fixes, YAML and XML
+checks, large-file guard, \texttt{ruff check --fix} and \texttt{ruff format} (single quotes, line
+length 99), \code{clang-format} for C++, \code{prettier} for YAML, Markdown and JSON,
+\code{shellcheck}.
+\begin{lstlisting}
+pip install pre-commit && pre-commit install
+pre-commit run --all-files
+\end{lstlisting}
+
+\section{Tests}
+
+\begin{description}
+  \item[\code{test/unit}] pytest on \code{core/}, fast and without ROS:
+    \texttt{PYTHONPATH=\$PWD python -m pytest -q test/unit}.
+  \item[\code{test/ros}] rclpy in-process node tests with \code{DharmaNode}, \code{Spinner} and
+    \code{Collector} (\code{dharma_utils.testing}); unique node names; \code{rclpy.init()} and
+    \code{try_shutdown()} per test. Module-level helpers must not be named \code{setup} or
+    \code{teardown}: the pytest versions of the Foxy, Humble and Jazzy apt packages run them as
+    nose-style fixtures before \code{rclpy.init()}. Foxy's pytest is 4.6.
+  \item[\code{test/test_style.py}] \code{check_package}: module sizes, pure \code{core/}, no
+    shadowed node members.
+\end{description}
+Every fixed defect has a regression test (Appendix~\ref{app:trace}).
+\begin{lstlisting}
+colcon build --packages-select <pkg>
+colcon test --packages-select <pkg> --event-handlers console_direct+
+colcon test-result --verbose
+\end{lstlisting}
+
+\section{Continuous integration}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{ci}
+  \caption{CI of every Dharma repository: lint, then build and test on Foxy, Humble and Jazzy with the
+    Dharma dependencies on the same branch when it exists.}
+  \label{fig:ci}
+\end{figure}
+
+Every repository carries the same \code{.github/workflows/ci.yml} (Fig.~\ref{fig:ci}):
+\begin{enumerate}
+  \item \textbf{lint} on Ubuntu 24.04: \texttt{pre-commit run --all-files}; the end of the log is
+    reported as an error annotation on failure.
+  \item \textbf{build-test}, matrix \code{foxy}, \code{humble} and \code{jazzy} in
+    \code{ros:<distro>-ros-base} (Python 3.8 with numpy 1.17, Python 3.10 with numpy 1.21, and
+    Python 3.12 with numpy 1.26); the frozen Foxy image first gets the current ROS apt key:
+    \begin{enumerate}
+      \item check out the repository into \code{src/<repo>};
+      \item \texttt{vcs import} the Dharma dependencies from \code{deps.repos} (at \code{main});
+      \item \textbf{same-branch matching}: every dependency that has the branch under test on
+        its origin is checked out at that branch, so a change spanning several repositories is
+        built and tested together before it is merged;
+      \item \texttt{rosdep install} (skipping \code{livox_ros_driver2}, \code{fast_lio},
+        \code{legkilo}, which are built from source on robots; \code{loguru} from pip on Foxy);
+      \item \texttt{colcon build}, then \texttt{colcon test} of the repository's packages and
+        \texttt{colcon test-result}.
+    \end{enumerate}
+\end{enumerate}
+Discovery is limited to localhost in CI (\code{ROS_LOCALHOST_ONLY}, \code{ROS_AUTOMATIC_DISCOVERY_RANGE}).
+
+\section{Releases}
+
+\begin{itemize}
+  \item SemVer; before 1.0 a breaking change bumps the minor version and every package of the stack
+    moves with it (0.1 $\to$ 0.2). \code{dharma_utils} is a dependency of every package: its API is
+    deprecated one minor release before anything is removed.
+  \item \code{CHANGELOG.md} in Keep a Changelog format (Added, Changed, Fixed, Removed);
+    \code{package.xml} carries the version.
+  \item Conventional commits, one short line each (\texttt{fix(mux): rotation inside the field}).
+  \item Products pin released versions in their \code{.repos} file (vcstool).
+\end{itemize}
+
+\section{The template repository}
+\label{sec:template}
+
+The \code{Dharma} repository is the hub of the stack and a GitHub template a robot product starts
+from. It holds:
+\begin{description}
+  \item[\code{dharma.repos}, \code{external.repos}] every Dharma repository at \code{main}; the
+    Livox driver (\code{livox_ros_driver2}), FAST-LIO and, commented out, the Leg-KILO fork.
+  \item[\code{docker/}, \code{compose.yaml}, \code{.devcontainer/}] a development image for
+    Foxy, Humble and Jazzy (\texttt{ARG ROS\_DISTRO}, \code{ros:<distro>-ros-base}) with an XFCE
+    desktop over VNC and noVNC; one compose service per distribution (profiles \code{foxy},
+    \code{humble} and \code{jazzy}), separate build, install and log volumes per distribution
+    (builds of two distributions never mix), ports bound to localhost (Foxy 5903 / 6082, Humble
+    5901 / 6080, Jazzy 5902 / 6081).
+  \item[\code{scripts/dev.sh}] \texttt{[--distro foxy|humble|jazzy] up | shell | build | test |
+    vnc | down | clean | import | doctor} (default distribution from \code{DHARMA_DISTRO}, else
+    Humble). \texttt{doctor} checks Docker, compose v2, the engine architecture, CPUs and memory
+    (8~GiB or more), vcstool and access to the private repositories. \texttt{import} uses
+    vcstool, or plain git without it. The script runs on the bash 3.2 of macOS (no empty
+    \texttt{"\$\{array[@]\}"} under \texttt{set -u}, no bash 4 features). On Linux the container
+    user gets the caller's uid and gid; on macOS it stays 1000 (Docker Desktop maps the ownership
+    of the bind mount) and the image reuses a gid it already has (macOS gid 20 is
+    \code{dialout} in Ubuntu). On Apple Silicon the images build natively for arm64 (the ROS
+    images are multi-arch).
+  \item[\code{scripts/setup.sh}] \texttt{check} or \texttt{install <components>} on a robot
+    computer or a development machine: \code{ros}, \code{tools}, \code{repos}, \code{livox},
+    \code{rosdep}, \code{build}, \code{service} (a systemd unit running the bringup at boot),
+    \code{timesync} and \code{ptp} (one clock for every stamp, \code{scripts/timesync.sh},
+    Section~\ref{sec:timesync}); Ubuntu 20.04 with Foxy, 22.04 with Humble or 24.04 with Jazzy.
+  \item[\code{scripts/start_tmux.sh}] a tmux session with one window per subsystem from a YAML
+    layout in \code{scripts/tmux/} (\code{robot} or \code{sim}).
+  \item[\code{scripts/sync_tooling.sh}, \code{tooling/}] the canonical tooling files and their
+    copy into every checkout (maintainers).
+  \item[\code{src/robot_bringup}] the placeholder product package: \code{config/robot.yaml} (the
+    robot profile), \code{config/stack.yaml} (per-node overrides), \code{config/sim.yaml} (on
+    top of it for the simulator), \code{launch/robot.launch.py} (an optional robot driver and the
+    stack) and \code{launch/sim.launch.py} (\pkg{dharma_sim} and the stack, odometry external),
+    with the composition in \code{robot_bringup/stack.py} and pure helpers in
+    \code{bringup.py}, all unit-tested.
+  \item[\code{.github/}, \code{CONTRIBUTING.md}, \code{docs/}] CI, the pull request template,
+    the conventions and this documentation.
+\end{description}
+
+\textbf{Bringup.} \texttt{ros2 launch robot\_bringup robot.launch.py} validates every argument
+and the robot profile (unknown names and out-of-range values stop the launch with the reason),
+merges \code{stack.yaml} (and \code{sim.yaml}) with \code{params_file} into one parameter file,
+adds every started node to the health monitor's \param{nodes.expected}, reports sections that
+match no node, and includes each package launch in its own scope with \code{robot_params}, the
+merged file and only the arguments that are set. It remaps the mux's \topic{cmd_vel} to
+\topic{/<robot_ns>/cmd_vel}. Arguments: \code{robot_params}, \code{params_file},
+\code{use_sim_time}, \code{log_level}, \code{robot_ns} (\code{ROBOT_NS}), \code{robot_driver}
+(\code{<package>[/<file>.launch.py]}, started with \code{namespace:=<robot_ns>}),
+\code{odometry} (\code{fast_lio}, \code{leg_kilo} or \code{external}), \code{site},
+\code{sites_dir}, \code{start_mapping}, \code{fiducials}, \code{fiducials_detector}
+(\code{apriltag} or \code{aruco}), \code{camera_image},
+\code{camera_info}, \code{health}, and for the simulator \code{world}, \code{scenario},
+\code{rviz}. A robot driver package provides \code{launch/bringup.launch.py} accepting
+\code{namespace}; it publishes \topic{/<ns>/odom}, \topic{/<ns>/battery}, the LiDAR and IMU and
+the URDF TF, and subscribes \topic{/<ns>/cmd_vel}.
+
+\textbf{A new product.} ``Use this template'' on GitHub, clone, then
+\begin{lstlisting}
+scripts/init_project.py --name MyRobot --package my_robot_bringup --robot-ns my_robot --dry-run
+scripts/init_project.py --name MyRobot --package my_robot_bringup --robot-ns my_robot
+\end{lstlisting}
+renames \code{robot_bringup} everywhere, sets the robot namespace and the container names, removes
+what only the hub needs (\code{tooling/}, the tooling sync, the script itself, the manual, the
+paper, the diagram sources, the PDFs and the guide unless \code{--keep-docs}), resets the version
+to 0.1.0 and rewrites \code{README.md} and \code{CHANGELOG.md}. The guide page \emph{New product
+from the template} (\code{docs/guide}) walks through the remaining steps (robot profile, driver, limits, first map).
+
+\section{Building this documentation}
+
+\begin{lstlisting}
+make -C docs              # diagrams (when draw.io is installed), manual, paper
+make -C docs diagrams     # diagrams/*.drawio -> diagrams/pdf (cropped), diagrams/svg
+make -C docs manual       # build/manual/dharma_manual.pdf
+make -C docs paper        # build/paper/dharma.pdf
+make -C docs pdf          # both, copied to docs/pdf (committed)
+make -C docs reference SRC=~/ws/src   # regenerate manual/generated from the sources
+\end{lstlisting}
+Diagrams are draw.io files (Helvetica; colours per layer: estimation orange \texttt{\#ffe6cc} /
+\texttt{\#d79b00}, world model blue \texttt{\#dae8fc} / \texttt{\#6c8ebf}, planning and execution green
+\texttt{\#d5e8d4} / \texttt{\#82b366}, safety red \texttt{\#f8cecc} / \texttt{\#b85450}, utilities yellow
+\texttt{\#fff2cc} / \texttt{\#d6b656}, hardware grey \texttt{\#f5f5f5} / \texttt{\#666666}). Their PDF and SVG
+exports are committed, so LaTeX builds without draw.io.

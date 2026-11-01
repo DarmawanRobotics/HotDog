@@ -1,0 +1,44 @@
+# The Dharma stack: vcs import src < dharma.repos   (scripts/dev.sh import, scripts/setup.sh install repos)
+# A product pins released versions here (a tag or a commit with the release in a comment).
+repositories:
+  dharma/dharma_utils:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_utils.git
+    version: main
+  dharma/dharma_interfaces:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_interfaces.git
+    version: main
+  dharma/dharma_odometry:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_odometry.git
+    version: main
+  dharma/dharma_localization:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_localization.git
+    version: main
+  dharma/dharma_perception:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_perception.git
+    version: main
+  dharma/dharma_mapping:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_mapping.git
+    version: main
+  # dharma_navigation and dharma_control
+  dharma/dharma_navigation:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_navigation.git
+    version: main
+  dharma/dharma_health:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_health.git
+    version: main
+  dharma/dharma_rviz:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_rviz.git
+    version: main
+  dharma/dharma_sim:
+    type: git
+    url: https://github.com/DarmawanRobotics/dharma_sim.git
+    version: main

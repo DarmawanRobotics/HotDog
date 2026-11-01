@@ -1,0 +1,12 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+Dharma shows that a small autonomy stack can be robot-agnostic and explicit about its
+assumptions: one robot profile feeds every limit, the localization estimate carries its
+uncertainty and gates its corrections, and one braking model bounds every speed, from the route
+profile to a protective field that treats missing data as an obstacle. Pure cores and enforced
+conventions keep these models consistent across eleven repositories and three ROS~2
+distributions. In simulation the field kept its margin and the gated filter cut the
+localization error fivefold; the defects the runs exposed are fixed, but reactive avoidance
+still stops short of a person on the route. Future work is a pose graph, deskewed near-field
+perception and a second robot model on the same stack.

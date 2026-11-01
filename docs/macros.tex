@@ -1,0 +1,22 @@
+% Macros shared by the paper and the manual (needs xcolor and amsmath).
+
+% Placeholder for content that phase 2 fills in (measured results, test names). Renders in red
+% so nothing unfinished goes unnoticed.
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO:} #1\textbf{]}}}
+% A number still to be measured, for tables.
+\newcommand{\tbd}{\textcolor{red}{\textbf{??}}}
+
+% Names
+\newcommand{\pkg}[1]{\texttt{#1}}
+\newcommand{\topic}[1]{\texttt{#1}}
+\newcommand{\frm}[1]{\texttt{#1}}
+\newcommand{\param}[1]{\texttt{#1}}
+
+% Math
+% {}^{a}T_{b}: pose of frame b in frame a (maps points from b to a), the TF edge a -> b.
+\newcommand{\T}[2]{{}^{#1}\mathbf{T}_{#2}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\SE}[1]{\mathrm{SE}(#1)}
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\tr}{t_{\mathrm{r}}}
+\newcommand{\amax}{a_{\mathrm{dec}}}

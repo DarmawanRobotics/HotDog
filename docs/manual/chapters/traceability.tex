@@ -1,0 +1,532 @@
+\chapter{Traceability: findings, fixes and tests}
+\label{app:trace}
+
+Every finding of the two reviews of the 0.1 stack, the change that fixes it in 0.2.0 and the
+regression tests that cover it. IDs with letters (O1, L1, \ldots) come from the first review (the
+mathematical analysis); \code{\#}$n$ IDs come from the second review, numbered per repository.
+Priorities: P0 safety, P1 robustness, P2 maintainability (first review). Tests are
+\code{file::function} in the package's \code{test/} directory (u: \code{test/unit}, r:
+\code{test/ros}); the C++ panels of \pkg{dharma_rviz} have gtests, written
+\code{file::Suite.Test} (g: \code{test/}). A cell that says ``no dedicated test'' marks a fix that
+is verified only by review or indirectly.
+
+\section{dharma\_odometry}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  O1 (P1) & the start gate let the estimator start up to 8° tilted, tilting odom and map &
+    \param{max_tilt_deg} 3.0 (\code{core/config.py}); Leg-KILO \texttt{init\_type: 2}
+    (\code{config/leg_kilo.yaml}); tilt of odom while still in \code{OdometryStatus}
+    (\code{core/monitor.py}); levelling in localization &
+    u/\code{test_still::test_default_start_tilt_limit_is_three_degrees},
+    u/\code{test_still::test_gate_holds_a_tilted_start},
+    u/\code{test_monitor::test_level_body_in_a_tilted_odom_is_degraded},
+    u/\code{test_monitor::test_tilted_body_in_a_level_odom_is_ok} \\
+  O1 & monitor thresholds per robot speed, not a statistical test & residual $\chi^2$ with sensor
+    variances and CUSUM (\code{core/residual.py}) &
+    u/\code{test_residual::test_lasting_mismatch_alarms_after_a_while_and_recovers},
+    u/\code{test_residual::test_threshold_scales_with_the_variances},
+    u/\code{test_residual::test_agreeing_speeds_never_alarm_with_sensor_noise} \\
+  \#7 & false restart when turning in place near the start pose & a restart needs a message gap
+    or a translation jump to the origin, never yaw alone (\code{core/restart.py}) &
+    u/\code{test_restart::test_turn_in_place_near_the_start_is_no_restart},
+    u/\code{test_restart::test_yaw_snap_alone_is_no_restart},
+    r/\code{test_monitor_node::test_turn_in_place_at_the_start_is_no_restart} \\
+  \#8 & \texttt{extrinsic\_est\_en: true} for the factory-calibrated Mid-360 IMU & false
+    (\code{config/fast_lio.yaml}) &
+    r/\code{test_launch::test_fast_lio_does_not_estimate_the_factory_extrinsic} \\
+  \#17 & a mistyped \code{site_config} silently ignored & a set but missing file fails the launch &
+    r/\code{test_launch::test_missing_site_config_fails_the_launch} \\
+  \#3, \#15 & route recorder in odometry (records while not localized, non-atomic CSV) & moved to
+    \pkg{dharma_mapping} and fixed there & see dharma\_mapping, recorder \\
+  H1 & status as a string & \code{OdometryStatus} (typed) &
+    r/\code{test_monitor_node::test_status_is_typed_and_restart_needs_gap_and_origin} \\
+  -- & layer inversion: odometry launched localization & include and \code{exec_depend} removed &
+    r/\code{test_launch::test_external_starts_only_the_monitor} \\
+  -- & empty launch arguments override parameter files & only non-empty arguments override &
+    r/\code{test_launch::test_empty_arguments_never_override},
+    r/\code{test_launch::test_parameter_files_in_order} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_localization}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  L1 (P1) & one tag detection hard-replaced map$\to$odom: no covariance, no continuous
+    correction, ad-hoc 0.5~m / 15° rejection & SE(2) EKF over map$\to$odom with a chi-square gate
+    (\code{core/estimator.py}), sources (\code{core/sources/}), optional scan matching,
+    \topic{localization/pose} with covariance &
+    u/\code{test_estimator::test_predict_grows_with_distance_not_time},
+    u/\code{test_estimator::test_gate_grows_with_uncertainty},
+    u/\code{test_localizer::test_tag_in_view_localizes_then_corrects_through_the_gate},
+    u/\code{test_scan_match::test_match_recovers_the_pose_and_reports_a_covariance} \\
+  L2 (P2) & \code{record_tags} slept 2~s in a service callback and blocked the map$\to$odom
+    timer & timer-driven recording session, own callback group (\code{core/tags.py},
+    \code{utils/tag_services.py}) &
+    r/\code{test_localization_node::test_record_tags_keeps_tf_flowing_and_relocalizes} \\
+  O1 (P1) & odom not level & levelling in the bridge (\code{core/leveling.py},
+    \code{core/bridge.py}) &
+    u/\code{test_leveling_bridge::test_level_rotation_removes_the_start_tilt_of_the_base},
+    u/\code{test_leveling_bridge::test_level_bridge_keeps_lio_motion_planar_on_a_tilted_start},
+    r/\code{test_localization_node::test_bridge_levels_odom_and_reset_clears} \\
+  T1/T3, \#14 & tf2 interpolated a ramp across a correction & old value at $t - \epsilon$, new
+    at $t$ (\code{core/timeline.py}) &
+    u/\code{test_leveling_bridge::test_timeline_steps_within_epsilon_never_ramps},
+    u/\code{test_localizer::test_correction_samples_step_without_ramp} \\
+  \#1 & auto-correct gate compared map$\to$odom instead of map$\to$base & innovation on the robot
+    pose & u/\code{test_estimator::test_gate_rejects_outliers_and_accepts_consistent_fixes_far_from_origin},
+    u/\code{test_estimator::test_heading_uncertainty_far_from_origin_moves_the_robot_sideways} \\
+  \#2 & \code{record_tags} allowed while not localized, overwriting the site anchors & refuse
+    unless \code{LOCALIZED} and not circular &
+    u/\code{test_tags::test_recordable_refuses_when_not_localized_or_circular},
+    u/\code{test_localizer::test_record_refused_when_not_localized_and_when_circular} \\
+  \#3 & a corrupt tags file crashed \code{record_tags} & tolerant reads, \texttt{success: false} &
+    u/\code{test_tags::test_merge_refuses_to_overwrite_a_corrupt_file},
+    u/\code{test_localizer::test_record_session_writes_the_tag_and_survives_a_corrupt_file} \\
+  \#10 & an empty launch argument overrode the params file & non-empty overrides only &
+    u/\code{test_launch::test_empty_arguments_do_not_override} \\
+  \#11 & \code{~} in the tags file not expanded & \code{dharma_utils.io.expand} &
+    r/\code{test_localization_node::test_tags_file_with_tilde_is_expanded} \\
+  \#12 & \code{load_tags} wrote anywhere & path must resolve inside \param{sites_dir} &
+    r/\code{test_localization_node::test_load_tags_path_guard_and_corrupt_file} \\
+  \#15 & tag tests without the real optical rotation & tests with $(-\pi/2, 0, -\pi/2)$ and
+    non-zero yaws, hand-computed poses &
+    u/\code{test_tag_geometry::test_optical_rotation_is_right_down_forward},
+    u/\code{test_tag_geometry::test_tag_off_axis_and_rotated_robot_yawed_90_degrees} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_perception}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  P1 (P1) & height band in base\_link, which pitches with the gait; base height 0.35 here and
+    0.30 elsewhere & levelled points, band above the floor from \param{robot.base_height},
+    optional ground segmentation (\code{core/filtering.py}) &
+    u/\code{test_filtering::test_pitched_body_does_not_see_the_floor},
+    u/\code{test_filtering::test_band_is_relative_to_the_floor_through_base_height},
+    r/\code{test_lidar_sector_node::test_pitched_body_does_not_block_on_the_floor} \\
+  P1 & minimum of one point per sector sensitive to outliers & $k$-th nearest point
+    (\code{core/sectors.py}) &
+    u/\code{test_sectors::test_kth_nearest_ignores_a_single_spurious_return} \\
+  P2 (P1) & visitor tracker associated in a rotating frame & removed (product feature) & -- \\
+  B4 & low objects near the robot drop out of view; sectors without returns read free &
+    obstacle memory in odom (\code{core/memory.py}); limits documented &
+    u/\code{test_memory_blindness::test_memory_keeps_an_object_the_sensor_no_longer_sees},
+    u/\code{test_pipeline::test_memory_keeps_a_low_box_in_the_safety_scan} \\
+  -- & blind sensor not reported & every sector \code{BLOCKED} when blind, TF missing, errors or
+    silence (\code{core/blindness.py}, node watchdog) &
+    u/\code{test_pipeline::test_blind_lidar_blocks_every_sector},
+    r/\code{test_lidar_sector_node::test_blind_livox_blocks_every_sector},
+    r/\code{test_lidar_sector_node::test_silent_input_publishes_blocked_scans} \\
+  \#4 & one malformed cloud killed the producer & validated parsing, per-message try/except,
+    respawn & u/\code{test_livox::test_fuzz_never_raises_anything_else},
+    r/\code{test_lidar_sector_node::test_malformed_livox_bytes_keep_the_node_alive},
+    r/\code{test_lidar_sector_node::test_pointcloud_input_and_malformed_clouds} \\
+  \#12 & Livox tag bits ignored & noise filter per field and confidence &
+    u/\code{test_livox::test_noise_mask_selects_fields_and_levels},
+    r/\code{test_lidar_sector_node::test_livox_noise_tags_are_dropped} \\
+  \#16 & the Livox path had no real test & raw-bytes node test, packer checked against the
+    documented layout & r/\code{test_lidar_sector_node::test_livox_raw_bytes_give_front_and_safety_scans},
+    u/\code{test_livox::test_packer_matches_the_documented_layout} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_mapping}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  M1 (P1) & scans integrated at the TF pose without any check & jump and correction gates,
+    optional refinement (\code{core/integrator.py}); pose graph future work &
+    u/\code{test_integrator::test_jump_is_rejected_and_never_grows_the_grid},
+    u/\code{test_integrator::test_refinement_keeps_walls_sharp_under_pose_error},
+    u/\code{test_integrator::test_refinement_refuses_an_ambiguous_corridor} \\
+  O1 & band assumed a level map frame without saying so & band in the levelled map frame,
+    documented & u/\code{test_integrator::test_band_drops_floor_ceiling_and_the_robot} \\
+  I1, §5.4 & site manager mixed map storage with POIs and tours & POIs and tours removed & -- \\
+  \#4 & \code{mapping/save} wrote another site's grid; a timed-out stop counted as stopped & the
+    session remembers its site (\code{core/session.py}); a timeout is a failure &
+    u/\code{test_session::test_session_refuses_to_save_another_sites_grid},
+    r/\code{test_site_manager_node::test_timed_out_stop_is_a_failure} \\
+  \#5 & no \code{.bak}, map pair not atomic, reset of the same site skipped the archive & atomic
+    pair with size and CRC, \code{.bak} pair (\code{core/map_io.py}); reset always archives &
+    u/\code{test_map_io::test_previous_pair_is_kept_as_a_loadable_backup},
+    u/\code{test_map_io::test_torn_pair_is_detected},
+    u/\code{test_map_io::test_failed_write_leaves_the_old_pair},
+    u/\code{test_session::test_reset_always_archives_existing_content} \\
+  \#7 & corrupt site files crashed the site manager at every boot & tolerant loads, notes in
+    \topic{site/status} (\code{core/site_store.py}) &
+    u/\code{test_site_store::test_corrupt_files_never_raise},
+    r/\code{test_site_manager_node::test_corrupt_site_files_do_not_crash_the_boot} \\
+  \#8 & unbounded grid growth on odometry jumps (300~m: 109~MB) & size cap and jump gate
+    (\code{core/grid.py}) & u/\code{test_grid::test_growth_is_capped_on_a_pose_jump},
+    u/\code{test_grid::test_cap_splits_the_room_when_both_sides_grow} \\
+  \#9 & an \code{origin} localization at boot trusted as the frame of an existing site & only
+    tag or pose-estimate localization continues a site &
+    u/\code{test_session::test_origin_at_boot_is_not_the_frame_of_an_existing_site},
+    r/\code{test_site_manager_node::test_origin_at_boot_does_not_continue_an_existing_site} \\
+  \#10 & launch defaults overrode the params file & non-empty overrides only &
+    r/\code{test_launch::test_empty_arguments_add_no_overrides},
+    r/\code{test_launch::test_missing_params_file_fails_the_launch} \\
+  \#11 & \code{~} not expanded (recorder output, tags path) & \code{dharma_utils.io.expand} &
+    u/\code{test_routes::test_output_path_is_expanded_and_empty_refuses} \\
+  \#12 & \code{grid_mapper/save|load} accepted any path & site names only &
+    r/\code{test_grid_mapper_node::test_scans_become_a_grid_saved_into_its_own_site},
+    r/\code{test_grid_mapper_node::test_continue_needs_the_site_loaded} \\
+  \#13 & archives collided within a second, nested routes, were made before the preconditions &
+    \code{unique_dir}, preconditions first &
+    u/\code{test_site_store::test_archive_twice_in_one_second_never_nests},
+    r/\code{test_site_manager_node::test_reset_archives_into_unique_directories},
+    r/\code{test_site_manager_node::test_reset_archives_only_when_it_can_start} \\
+  \#14 & scans integrated during a map$\to$odom correction & correction gate &
+    u/\code{test_integrator::test_scans_during_a_correction_are_skipped} \\
+  rec. & recorder recorded while not localized (TF exists $\ne$ localized) & only while
+    \code{LOCALIZED} (\code{core/routes.py}) &
+    u/\code{test_routes::test_refuses_when_not_localized},
+    r/\code{test_route_recorder_node::test_refuses_while_not_localized_even_with_tf} \\
+  rec. & non-atomic, all-in-memory CSV & incremental atomic writes &
+    u/\code{test_routes::test_route_goes_to_the_site_and_is_written_incrementally} \\
+  rec. & an \code{OSError} in the service killed the node & \texttt{success: false} &
+    r/\code{test_route_recorder_node::test_file_errors_are_answers_not_crashes} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_navigation}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  N1 (P0) & planner radius 0.35~m below the half diagonal 0.49~m & lethal = inscribed radius +
+    margin, oriented footprint check up to the circumscribed radius
+    (\code{core/planning/costmap.py}, \code{footprint.py}) &
+    u/\code{test_planning::test_radii_come_from_the_footprint},
+    u/\code{test_planning::test_oriented_footprint_against_a_wall},
+    u/\code{test_planning::test_door_narrower_than_the_body_is_refused} \\
+  N2 (P2) & MPPI without obstacle cost, warm start or seed; PID without anti-windup;
+    SpeedRegulator integrating $|\omega|$ & obstacle cost, warm start, seeded RNG
+    (\code{core/controllers/mppi.py}); clamped integral (\code{pid.py}); signed error, reset on
+    new paths & u/\code{test_controllers::test_mppi_is_seeded_and_warm_started},
+    u/\code{test_controllers::test_mppi_steers_around_scan_obstacles},
+    u/\code{test_controllers::test_pid_integral_is_clamped_and_recovers};
+    regulator: no dedicated test \\
+  N3 (P1) & two stopping models (path shift without reaction time) & \code{dharma_utils.safety}
+    for path shift, profile and guard & u/\code{test_path::test_profile_brakes_into_stops_with_the_stopping_model},
+    u/\code{test_shift::test_no_gap_slows_to_a_stop_with_the_stopping_model} \\
+  N4 (P0) & \code{steering_bias} a rate in the message, an angle in one controller &
+    \code{heading_offset} (rad) and \code{yaw_rate_bias} (rad/s) in every controller &
+    u/\code{test_controllers::test_biases_have_one_meaning_in_every_controller} \\
+  N5 (P2) & hard-coded \code{'map'} / \code{'base_link'} & \param{robot.frames} & no dedicated
+    test: the node tests run with the default frames; no frame literal is left in the package
+    sources \\
+  -- & speed profile without a forward pass & forward pass (\code{core/path/profile.py}) &
+    u/\code{test_path::test_profile_forward_pass_limits_acceleration} \\
+  §4 & stale TF stopped the robot without distinction & ages from \code{self.tf}, prediction
+    between \param{tf_compensate_sec} and the timeout, \code{TF_STARTING} / \code{TF_STALE} /
+    \code{TF_CLOCK} (\code{core/follower/supervisor.py}) &
+    u/\code{test_follower_safety::test_tf_status_messages},
+    u/\code{test_follower_safety::test_slightly_old_pose_is_predicted_with_the_twist} \\
+  -- & \code{path_follower_node} 1429 lines & pure follower in \code{core/follower/}, node 277
+    lines & \code{test_style::test_package_conventions} \\
+  F1 & blind scan (0 / NaN sectors) read as clear in path shift and planner & blocked = stop &
+    u/\code{test_shift::test_blind_scan_stops},
+    r/\code{test_planner_node::test_blocked_replans_and_blind_scan_fails},
+    u/\code{test_avoidance::test_blind_sectors_ahead_stop_the_robot},
+    r/\code{test_obstacle_avoidance_node::test_blind_scan_is_an_emergency} \\
+  F2 & a stop could leave a moving command last; no zero on shutdown & zero on entering
+    INACTIVE, shutdown hook, state lock &
+    u/\code{test_follower::test_stop_zeroes_once_and_start_resumes},
+    r/\code{test_path_follower_node::test_follow_pause_estop_resume_and_shutdown} \\
+  F3 & start raced the control tick & one mutually exclusive group for state changes and the
+    control loop, asynchronous hook calls &
+    r/\code{test_path_follower_node::test_follow_pause_estop_resume_and_shutdown} \\
+  F4 & path-shift speed limit from the commanded offset only & also the measured offset &
+    u/\code{test_shift::test_measured_offset_limits_the_speed} \\
+  F5 & progress jumped to a parallel leg while shifted & windowed, offset-compensated
+    projection, capped advance (\code{core/path/progress.py}) &
+    u/\code{test_path::test_shifted_progress_stays_on_its_leg},
+    u/\code{test_follower::test_overlapping_legs_keep_progress_and_stops} \\
+  F6 & stop points skipped while shifted or triggered early from another leg & detection by
+    progress and distance minus offset; wait at a stop with an obstacle &
+    u/\code{test_follower::test_overlapping_legs_keep_progress_and_stops},
+    u/\code{test_follower::test_stop_point_with_an_obstacle_waits_instead_of_passing} \\
+  F7 & joining and final approach checked by the front cone only; timers ran while paused &
+    360° motion guard in every phase; timers frozen &
+    u/\code{test_follower_safety::test_joining_is_guarded_by_the_scan},
+    u/\code{test_follower::test_dwell_timer_is_frozen_while_paused} \\
+  F8 & snapped goals never arrived & arrival against the plan goal &
+    u/\code{test_session::test_arrival_is_tested_against_the_snapped_goal},
+    r/\code{test_planner_node::test_go_to_arrives_on_the_plan_goal_and_stops} \\
+  F9 & planner failed but the follower kept going & stop on every failure after \code{set_path}
+    & u/\code{test_session::test_follower_failure_stops_and_fails},
+    u/\code{test_session::test_blocked_replans_then_gives_up_and_stops} \\
+  F10 & cancel blocked behind planning & own callback group, cancel flag &
+    r/\code{test_planner_node::test_cancel_is_not_blocked_by_a_slow_send} \\
+  F11 & numeric parameters unchecked (NaN, zero temperature, negative accelerations) & typed
+    configuration with ranges, NaN $\to$ 0 & u/\code{test_follower_safety::test_config_ranges_and_cross_checks},
+    u/\code{test_follower_safety::test_shaper_envelope_slew_and_nan},
+    r/\code{test_path_follower_node::test_invalid_parameters_are_rejected} \\
+  F12 & route processing dropped stop points closer than 3~cm & anchors kept &
+    u/\code{test_path::test_close_stop_points_are_all_kept} \\
+  F13 & avoidance smoothing slowed braking & asymmetric smoothing &
+    u/\code{test_avoidance::test_smoothing_never_slows_braking},
+    u/\code{test_avoidance::test_policy_brakes_in_one_scan_with_heavy_smoothing} \\
+  F14, B2 & default \code{cmd_vel} bypassed the mux & \topic{control/nav_cmd_vel} (fixed
+    name, \code{utils/outputs.py}) &
+    r/\code{test_path_follower_node::test_follow_pause_estop_resume_and_shutdown} \\
+  F15 & path shift kept after a mode change; costmap cache not invalidated; planner pose without
+    TF age check & reset on mode change, rebuild on parameter change, age check &
+    u/\code{test_follower::test_mode_change_drops_the_path_shift},
+    r/\code{test_planner_node::test_go_to_arrives_on_the_plan_goal_and_stops} (costmap dropped on
+    a parameter change); planner pose age (\code{tf.fresh} with \param{tf_timeout_sec}): no
+    dedicated test \\
+  F16 & ``paused until relocalized'' never un-paused & pause reasons (\code{core/follower/pause.py})
+    & u/\code{test_follower_safety::test_relocalization_unpauses},
+    u/\code{test_follower_safety::test_estop_is_sticky_and_remote_is_transient} \\
+  F17 & one-point path accepted; pending inspections survived a restart; route markers keyed on
+    the count; line of sight through diagonal pinches & two points required; inspection rounds;
+    markers by route; corner cells counted & u/\code{test_path::test_route_needs_two_points_and_length},
+    u/\code{test_follower::test_late_inspection_answers_are_dropped_after_a_restart},
+    u/\code{test_planning::test_line_of_sight_blocks_diagonal_pinches} \\
+  F18 & missing tests (transitions, zero on stop / e-stop / stale / pause / shutdown, path shift
+    lag, blind scans, overlapping legs) & added & u/\code{test_follower::test_transition_table},
+    u/\code{test_follower_safety::test_every_hold_publishes_zero_every_tick} and the tests above \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_control}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  C1 (P0) & rotation not limited by the field & rotation room and combined-motion arc
+    (\code{core/field.py}, \code{core/arc.py}) &
+    u/\code{test_field::test_rotation_next_to_an_obstacle_is_limited},
+    u/\code{test_field::test_rotation_limit_follows_the_yaw_stopping_model},
+    u/\code{test_field::test_combined_motion_checks_the_arc},
+    r/\code{test_control_mux_node::test_field_limits_rotation_beside_an_obstacle} \\
+  C2 (P0) & software-only safety & \topic{control/hw_estop}, two-channel architecture documented
+    (README, Section~\ref{sec:two-channel}) &
+    u/\code{test_arbiter::test_hardware_estop_engages_and_blocks_release},
+    u/\code{test_arbiter::test_silent_hardware_estop_engages_when_required} \\
+  N3 & own stopping model & \code{dharma_utils.safety} only &
+    u/\code{test_field::test_wall_ahead_limits_with_the_shared_stopping_model} \\
+  -- & field off in REMOTE by default & \param{field.in_remote} true with its own margin &
+    r/\code{test_control_mux_node::test_field_on_in_remote_by_default},
+    u/\code{test_field::test_remote_uses_its_margin_and_can_be_switched_off} \\
+  B1 & blind LiDAR (all sectors 0) read as clear & blocked sectors are obstacles, BLIND $\to$
+    zero & u/\code{test_scan::test_all_sectors_zero_is_blind_not_clear},
+    u/\code{test_field::test_blind_scan_stops_auto},
+    r/\code{test_control_mux_node::test_blind_scan_stops_auto_and_creeps_remote} \\
+  B3 & e-stop resumed through \code{set_mode}; fire-and-forget pause calls; release forwarded
+    the held stick command & no navigation calls; re-arm with neutral commands
+    (\code{core/arbiter.py}) &
+    u/\code{test_arbiter::test_release_requires_rearm_and_never_forwards_the_held_command},
+    u/\code{test_arbiter::test_switch_to_remote_ignores_a_stick_held_during_the_switch} \\
+  \#3 & SetBool default request released the e-stop; anyone released anyone's & Trigger engage
+    and release &
+    r/\code{test_control_mux_node::test_estop_service_holds_zero_and_release_needs_rearm} \\
+  \#4 & watchdog and hold on the ROS clock & steady clock &
+    r/\code{test_control_mux_node::test_watchdog_and_hold_run_on_steady_time_with_sim_time} \\
+  \#5 & parameters ignored at runtime; \texttt{max\_decel: 0} crashed; NaN limits disabled the
+    envelope & read-only validated parameters; non-finite $\to$ zero &
+    u/\code{test_arbiter::test_config_validation},
+    r/\code{test_control_mux_node::test_bad_values_refuse_to_start},
+    u/\code{test_envelope::test_non_finite_on_any_axis_is_zero} \\
+  \#6 & no zero on shutdown or crash & shutdown hook, e-stop on callback errors &
+    r/\code{test_control_mux_node::test_shutdown_hook_publishes_zeros},
+    r/\code{test_control_mux_node::test_callback_error_engages_the_estop} \\
+  \#7 & scan freshness by receive time only; NaN sectors free; frame and coverage unchecked &
+    scan validation (\code{core/scan.py}) & u/\code{test_scan::test_header_age_old_and_future},
+    u/\code{test_scan::test_wrong_frame_is_rejected},
+    u/\code{test_scan::test_partial_coverage_is_rejected},
+    u/\code{test_scan::test_blocked_or_unknown_sectors_are_blind} \\
+  \#8 & several remote operators on one topic & one topic per source &
+    u/\code{test_arbiter::test_only_the_active_source_is_forwarded},
+    r/\code{test_control_mux_node::test_remote_sources_and_set_mode} \\
+  \#13 & re-sending the same mode injected a zero & no-op &
+    u/\code{test_arbiter::test_set_mode_same_mode_and_source_is_a_no_op} \\
+  \#14 & a second e-stop reason overwrote the first without republish & reasons accumulate,
+    status republished & u/\code{test_arbiter::test_estop_reasons_are_kept_oldest_first_without_duplicates},
+    r/\code{test_control_mux_node::test_estop_request_topic_appends_reasons} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_health}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  H1 (P2) & status as JSON in \code{std_msgs/String}, not actionable & \code{HealthStatus} +
+    \code{DiagnosticArray}, \code{speed_scale} for the mux &
+    u/\code{test_report::test_lidar_rate_low_or_tf_late_halves_the_speed},
+    u/\code{test_report::test_error_stops_and_comes_first},
+    u/\code{test_report::test_lowest_matching_rule_wins_and_rules_never_raise_an_error},
+    r/\code{test_health_node::test_core_states_match_the_messages} \\
+  -- & rates only: a 10~Hz topic with 2~s old stamps passed & header stamp age per topic,
+    negative ages; raw subscription, stamp read from the CDR bytes &
+    u/\code{test_sensors::test_10hz_topic_with_2s_old_stamps_warns},
+    u/\code{test_sensors::test_stamps_from_the_future_are_a_clock_offset},
+    u/\code{test_sensors::test_slow_and_silent_topics},
+    u/\code{test_sensors::test_cdr_stamp_both_byte_orders},
+    r/\code{test_health_node::test_stamp_from_a_real_serialized_message} \\
+  T1--T5 & TF staleness without diagnosis & per-edge ages classified as clock offset or load;
+    optional chrony check & u/\code{test_tf::test_steady_late_edge_is_a_clock_offset},
+    u/\code{test_tf::test_growing_ages_are_load}, u/\code{test_tf::test_stopped_publisher},
+    u/\code{test_tf::test_future_stamps_and_few_samples},
+    u/\code{test_tf::test_clock_check_runs_the_command_once_per_period},
+    r/\code{test_health_node::test_tf_edge_with_a_steady_offset_is_a_clock_problem} \\
+  \#9 & health OK while not localized & \code{NONE} is a warning &
+    u/\code{test_state::test_not_localized_is_a_warning},
+    r/\code{test_health_node::test_old_stamps_not_localized_then_ok_then_lost} \\
+  -- & safety scan and control field not watched & \code{state:safety_scan} and
+    \code{state:control} (stale or blind is an error) & u/\code{test_state::test_safety_scan},
+    u/\code{test_state::test_control_states},
+    r/\code{test_health_node::test_blind_safety_scan_is_an_error} \\
+  \#13 & missing-node check ignored namespaces & fully qualified names &
+    u/\code{test_state::test_nodes_with_namespaces},
+    r/\code{test_health_node::test_expected_node_in_another_namespace_is_missing} \\
+  \#17 & unreadable thermal zone or disk reported OK & ``unreadable'' warning, thermal zone
+    whitelist & u/\code{test_system::test_unreadable_values_warn},
+    u/\code{test_system::test_whitelisted_zones_only},
+    u/\code{test_system::test_no_whitelisted_zone_warns} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_sim}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  S1 (P2) & perfect odometry, stamps with \code{now()} & drift model, latency, LiDAR dropout,
+    seeded scenarios & u/\code{test_odometry::test_random_walk_grows_with_the_square_root_of_distance},
+    u/\code{test_odometry::test_scale_error_and_yaw_bias_accumulate},
+    u/\code{test_odometry::test_same_seed_same_run},
+    u/\code{test_latency::test_sensor_stamp_is_now_minus_latency},
+    u/\code{test_scenario::test_seeded_generators_are_reproducible_and_independent},
+    u/\code{test_scenario::test_dropouts_and_restarts},
+    r/\code{test_sim_robot_node::test_stamps_carry_the_latency},
+    r/\code{test_sim_robot_node::test_scenario_dropout_silences_the_lidar} \\
+  \#10 & ray cast blind from inside a circle; no collisions; LiDAR ignored the vertical field of
+    view and the minimum range & fixed ray cast, collision latch, Mid-360 model &
+    u/\code{test_world::test_ray_from_inside_a_circle_sees_its_far_side},
+    u/\code{test_world::test_collisions_with_walls_and_circles},
+    u/\code{test_body::test_collision_stops_and_latches},
+    u/\code{test_lidar::test_low_obstacle_hidden_below_the_lowest_beam},
+    u/\code{test_lidar::test_min_and_max_range},
+    r/\code{test_sim_robot_node::test_collision_latches_and_stops} \\
+  \#11 & \code{imu_in_lidar} sign (FAST-LIO's $T_{IL}$) & Livox manual values, derived
+    consistently & u/\code{test_odometry::test_imu_offset_follows_the_livox_manual},
+    u/\code{test_odometry::test_lio_pose_closes_the_bridge_chain} \\
+  \#14 & fixed $\Delta t$ per wall-timer tick (time dilation under load) & measured $\Delta t$,
+    clamped to \param{max_dt} & u/\code{test_body::test_measured_dt_not_ticks},
+    u/\code{test_body::test_stall_is_clamped_to_max_dt} \\
+\end{longtable}
+\end{small}
+
+\section{dharma\_rviz}
+
+\begin{footnotesize}
+\begin{longtable}{@{}>{\raggedright}p{0.06\textwidth}>{\raggedright}p{0.19\textwidth}>{\raggedright}p{0.19\textwidth}>{\raggedright\arraybackslash}p{0.47\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \#9 & Tuning: live apply by default, wheel scrolling edits gains, no bounds & apply-on-change
+    off, ranges from descriptors, wheel only with focus &
+    g/\code{test_tuning::TuningTest.EditorsFollowTheDescriptors},
+    g/\code{test_tuning::TuningTest.WheelIgnoredAndEditsWaitForApply} \\
+  \#10 & duplicate panels in \code{robot.rviz}; fixed node names per panel & duplicates removed,
+    unique node names & g/\code{test_panels::PanelTest.PanelsGetUniqueNodeNames},
+    g/\code{test_common::Names.UniqueNodeNamesPerInstance},
+    g/\code{test_plugins::Plugins.EveryPanelLoads}; \code{robot.rviz}: no dedicated test \\
+  \#11 & no e-stop, mode or field state in RViz; Start resumed during an e-stop & Safety panel;
+    Start disabled while \code{ControlStatus.estop} &
+    g/\code{test_panels::PanelTest.MissionStartDisabledDuringEstop},
+    g/\code{test_panels::PanelTest.SafetyEstopAlwaysEnabled},
+    g/\code{test_common::Format.NavigationButtonsFollowStateAndEstop} \\
+  \#15 & \code{wait_for_service} blocked the Qt thread; load race; 4 decimals; string arrays
+    split on commas & asynchronous readiness, client per request, full precision &
+    g/\code{test_panels::PanelTest.ServiceCallTimesOut},
+    g/\code{test_panels::PanelTest.ServiceCallReportsUnavailableAndSuccess},
+    g/\code{test_tuning::TuningTest.SecondLoadWins},
+    g/\code{test_tuning::TuningYaml.ExportKeepsPrecision},
+    g/\code{test_common::Yaml.ListLines} \\
+  \#16 & Tag panel buttons stuck; only the first diagnostic shown; values never stale &
+    timeouts, worst status, age indicator &
+    g/\code{test_panels::PanelTest.TagButtonsComeBackAfterTheReply},
+    g/\code{test_common::Diagnostics.WorstOfAllFreshStatuses},
+    g/\code{test_common::Staleness.GoesStaleAfterTimeout} \\
+\end{longtable}
+\end{footnotesize}
+
+\section{dharma\_interfaces and cross-stack findings}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.07\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright}p{0.26\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}@{}}
+\toprule
+  ID & Finding & Fix & Tests \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  I1 (P2) & core and application (tour guide) types mixed & POI, tour, visitor and mission types
+    removed; products own them & -- \\
+  N4 & \code{AvoidanceCommand.steering_bias} unit ambiguous & \code{heading_offset} (rad),
+    \code{yaw_rate_bias} (rad/s) & see dharma\_navigation N4 \\
+  H1 & status as strings everywhere & typed status messages with enum constants & package tests
+    of every publisher \\
+  P2 (§5.3) & duplication: 15 \code{main()} boilerplates, 11 latched QoS definitions, 5 yaw
+    implementations, 7 identical \code{test_node_members.py} & \pkg{dharma_utils}
+    (\code{run}, QoS, math, \code{check_package}) & \pkg{dharma_utils} unit tests;
+    \code{test_style} in every package \\
+  §5.2 & robot description in about six files & \code{RobotProfile} shared through
+    \param{robot.*} & u/\code{test_config::test_robot_profile_derived_values} (dharma\_utils) \\
+\end{longtable}
+\end{small}

@@ -1,0 +1,43 @@
+% Dharma: IEEE conference paper (IEEEtran, at most 8 pages).
+% Build: make -C docs paper  (output: docs/build/paper/dharma.pdf)
+\documentclass[conference]{IEEEtran}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\input{../authors}
+\input{../macros}
+
+\graphicspath{{../diagrams/pdf/}}
+
+\begin{document}
+
+\title{Dharma: A Robot-Agnostic, Safety-Layered ROS~2 Autonomy Stack for Service Robots in
+  Crowded Public Spaces}
+
+\author{\IEEEauthorblockN{\DharmaAuthor$^{1,2}$}
+\IEEEauthorblockA{$^{1}$\DharmaAffilOne\\
+$^{2}$\DharmaAffilTwo\\
+\DharmaEmail}}
+
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/architecture}
+\input{sections/methods}
+\input{sections/engineering}
+\input{sections/evaluation}
+\input{sections/limitations}
+\input{sections/conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

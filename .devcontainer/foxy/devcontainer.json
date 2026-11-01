@@ -1,0 +1,24 @@
+{
+  "name": "dharma (foxy)",
+  "dockerComposeFile": ["../../compose.yaml"],
+  "service": "dev-foxy",
+  "runServices": ["dev-foxy"],
+  "workspaceFolder": "/home/robot/ws",
+  "remoteUser": "robot",
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.analysis.extraPaths": ["/opt/ros/foxy/lib/python3.8/site-packages"],
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" }
+      }
+    }
+  }
+}

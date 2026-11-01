@@ -1,0 +1,154 @@
+<mxfile host="drawio" type="device">
+  <diagram id="safety_pipeline" name="safety_pipeline">
+    <mxGraphModel dx="860" dy="500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="860" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="v1" value="&lt;b&gt;control/nav_cmd_vel&lt;/b&gt;&lt;br&gt;AUTO: path follower" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="10" y="34" width="160" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="v2" value="&lt;b&gt;control/remote/&amp;lt;source&amp;gt;/&lt;br&gt;cmd_vel&lt;/b&gt;&lt;br&gt;REMOTE: one operator source" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#ffffff;strokeColor=#666666;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="10" y="88" width="160" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="v3" value="&lt;b&gt;e-stop requests&lt;/b&gt;&lt;br&gt;estop/engage, estop_request, hw_estop, internal error" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="10" y="154" width="160" height="54" as="geometry"/>
+        </mxCell>
+        <mxCell id="v4" value="&lt;b&gt;Arbitration&lt;/b&gt;&lt;br&gt;mode and source; watchdog on the steady clock (silent source: one zero); latched e-stop with reasons; re-arm" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="196" y="34" width="150" height="174" as="geometry"/>
+        </mxCell>
+        <mxCell id="v5" value="&lt;b&gt;Envelope&lt;/b&gt;&lt;br&gt;|v&lt;sub&gt;x&lt;/sub&gt;|, |v&lt;sub&gt;y&lt;/sub&gt;|, |ω| ≤ robot.limits; x, y scaled together; v&lt;sub&gt;y&lt;/sub&gt; = 0 for diff; non-finite → 0; × health speed scale" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="370" y="34" width="130" height="174" as="geometry"/>
+        </mxCell>
+        <mxCell id="v6" value="" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;align=center;verticalAlign=top;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="524" y="34" width="196" height="174" as="geometry"/>
+        </mxCell>
+        <mxCell id="t7" value="&lt;b&gt;Protective field&lt;/b&gt; (one braking model)" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="528" y="36" width="188" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="v8" value="&lt;b&gt;translation&lt;/b&gt;: clearance d of the footprint along u, v* = a(−t&lt;sub&gt;r&lt;/sub&gt; + √(t&lt;sub&gt;r&lt;/sub&gt;² + 2(d − m)/a))" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=center;verticalAlign=middle;spacing=4;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="530" y="56" width="184" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="v9" value="&lt;b&gt;rotation&lt;/b&gt;: free angle θ of the footprint, ω* from θ − m&lt;sub&gt;ψ&lt;/sub&gt; and the yaw deceleration" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=center;verticalAlign=middle;spacing=4;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="530" y="106" width="184" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="v10" value="&lt;b&gt;combined&lt;/b&gt;: footprint along the stopping arc, command scaled (curvature kept)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=center;verticalAlign=middle;spacing=4;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="530" y="156" width="184" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="v11" value="&lt;b&gt;robot driver&lt;/b&gt;" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="770" y="99" width="80" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="v12" value="&lt;b&gt;channel 1&lt;/b&gt;&lt;br&gt;e-stop button, safety scanner: drive cut-off" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;align=center;verticalAlign=middle;spacing=4;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="770" y="170" width="80" height="84" as="geometry"/>
+        </mxCell>
+        <mxCell id="v13" value="&lt;b&gt;perception/safety_scan&lt;/b&gt;&lt;br&gt;360° SectorScan; checks: base frame, full circle, receive and stamp age → STALE; blocked / NaN sector → BLIND" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="524" y="236" width="196" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="v14" value="&lt;b&gt;health/status&lt;/b&gt;&lt;br&gt;speed_scale (use_health_limit)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="370" y="236" width="130" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="t15" value="&lt;b&gt;control/status&lt;/b&gt;: mode, source, e-stop reasons, armed, field (CLEAR, LIMITED, STOP, STALE, BLIND, OFF), clearance, speed scale" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="196" y="2" width="524" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="e16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="v1" target="v4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="v2" target="v4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="v3" target="v4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="v4" target="v5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="v5" target="v6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e21" value="cmd_vel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="v6" target="v11">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1" source="v12" target="v11">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="v13" target="v6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="v14" target="v5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t25" value="AUTO: STALE or BLIND → zero. REMOTE: field on with its own margin; STALE or BLIND cap the fastest body point at remote_degraded_speed" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="10" y="236" width="350" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="l26" value="" style="html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#b3b3b3;endArrow=none;endFill=1;labelBackgroundColor=#ffffff;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="10" y="322" as="sourcePoint"/>
+            <mxPoint x="850" y="322" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t27" value="&lt;b&gt;E-stop latch and re-arm&lt;/b&gt; (per source; the follower pauses itself on &lt;i&gt;control/status&lt;/i&gt;)" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="10" y="326" width="600" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="v28" value="&lt;b&gt;ARMED&lt;/b&gt;&lt;br&gt;commands forwarded" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="350" y="360" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v29" value="&lt;b&gt;DISARMED&lt;/b&gt;&lt;br&gt;zero instead of commands" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v30" value="&lt;b&gt;ENGAGED&lt;/b&gt;&lt;br&gt;zero at once, then streamed" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=center;verticalAlign=middle;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="620" y="440" width="180" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="start" value="" style="ellipse;rounded=0;arcSize=8;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;spacing=4;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="30" y="452" width="16" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="e31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="start" target="v29">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="v29" target="v28">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="122.5" y="370"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t33" value="re-arm: rearm_neutral_count neutral commands; navigation also by staying silent for nav_timeout_sec" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="350" width="320" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="e34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="v28" target="v29">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="207.5" y="390"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t35" value="switch to a remote source" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="214" y="404" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="e36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="v28" target="v30">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="710" y="380"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t37" value="engage(reason): service, estop_request, hardware pressed or its signal lost, internal error" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="344" width="330" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="e38" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="v29" target="v30">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t39" value="engage" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="400" y="434" width="60" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="e40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=11;strokeColor=#333333;endArrow=block;endFill=1;labelBackgroundColor=#ffffff;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" edge="1" parent="1" source="v30" target="v29">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t41" value="release: every source disarmed; refused while the hardware e-stop is pressed" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="256" y="468" width="360" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="t42" value="another reason: appended, oldest first" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontColor=#1a1a1a;fontSize=10;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="640" y="482" width="210" height="18" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

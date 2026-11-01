@@ -1,0 +1,5 @@
+# Pins the route loader to the simulator's sites directory. The bringup passes sim.launch.py's
+# sites_dir to path_loader_node too; a run without this file loads the route as well.
+path_loader_node:
+  ros__parameters:
+    sites_dir: /tmp/dharma_sim/sites

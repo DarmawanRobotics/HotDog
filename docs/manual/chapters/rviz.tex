@@ -1,0 +1,71 @@
+\chapter{Operator panels}
+\label{ch:rviz}
+
+\pkg{dharma_rviz} provides five RViz panels (C++, Qt) to operate and tune a robot, and the layout
+\code{rviz/robot.rviz} with one of each next to the map, the planner path and costmap and the
+markers of navigation, routes, avoidance, perception and tags. The panels use relative names; the
+robot's own topics are remapped to its namespace:
+\begin{lstlisting}
+rviz2 -d $(ros2 pkg prefix dharma_rviz)/share/dharma_rviz/rviz/robot.rviz \
+  --ros-args -r battery:=/robot/battery -r cmd_vel:=/robot/cmd_vel \
+  -r motor_temperature:=/robot/motor_temperature
+\end{lstlisting}
+
+\section{Panels}
+
+\begin{small}
+\begin{longtable}{@{}>{\raggedright}p{0.17\textwidth}>{\raggedright}p{0.39\textwidth}>{\raggedright\arraybackslash}p{0.37\textwidth}@{}}
+  \toprule
+  Panel & Calls & Shows \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  Mission (\code{ControlPanel}) & \topic{localization/start}, \topic{route/start},
+    \topic{route/stop}, \topic{route/mark_stop_point}, \topic{navigation/load_path},
+    \topic{navigation/start}, \topic{stop}, \topic{pause}, \topic{resume},
+    \topic{planner/go_to}, \topic{planner/cancel} & \topic{localization/status},
+    \topic{navigation/status} (state, progress, pause reasons), \topic{planner/status},
+    \topic{route/saved}, the e-stop \\
+  Safety (\code{SafetyPanel}) & \topic{control/estop/engage} and \topic{control/estop_request},
+    \topic{control/estop/release}, \topic{control/set_mode} & \topic{control/status}: mode,
+    remote source, e-stop reasons, armed, protective field, clearance, speed scale \\
+  Status (\code{StatusPanel}) & -- & \topic{battery}, \topic{motor_temperature},
+    \topic{diagnostics} (worst of all), \topic{health/status}, \topic{odometry/status},
+    \topic{cmd_vel} \\
+  Tuning (\code{TuningPanel}) & the parameter services of any node & its parameters, ranges and
+    read-only flags from the node's descriptors \\
+  Tags (\code{TagPanel}) & \topic{localization/record_tags}, \topic{localization/start} &
+    \topic{localization/status} \\
+\end{longtable}
+\end{small}
+
+\section{Behaviour}
+
+\begin{itemize}
+  \item \textbf{Never blocking.} Each panel instance has its own node
+    (\code{dharma_rviz_<panel>_<pid>_<n>}, review \#10), spun from the Qt event loop. Service
+    calls are asynchronous with a client per request and fail with a message after a timeout
+    (5~s, the e-stop 2~s) instead of freezing RViz or leaving buttons disabled (\#15, \#16).
+  \item \textbf{E-stop first} (\#11). The E-STOP button is never disabled and sends both the
+    Trigger service and the \topic{control/estop_request} topic on every press, so it works even
+    when one path is down. Start, Resume and Go of the Mission panel are disabled while
+    \topic{control/status} reports the e-stop (navigation refuses them anyway); Stop is always
+    available. Release is a separate button; the mux still requires the re-arm
+    (Section~\ref{sec:safety-case}).
+  \item \textbf{Stale values} (\#16). Values that stop arriving for 3~s are greyed out with their
+    age; the diagnostics line shows the worst status among those received within that time.
+  \item \textbf{Tuning} (\#9, \#15). Edits wait for \emph{Apply} (\emph{Apply on change} is off by
+    default); spin boxes take the mouse wheel only when focused; ranges come from
+    \code{describe_parameters} and read-only parameters (\code{live=False}) are disabled; choices
+    listed in a description (\texttt{(a | b)}) become a combo box; string arrays are edited one
+    item per line; \param{controller} and \param{policy} select which implementation section is
+    shown; a second Load replaces the first and its late answers are dropped. \emph{Save YAML}
+    writes every shown value at full precision.
+  \item \textbf{Goals.} RViz's \emph{2D Goal Pose} tool only fills in the Go To pose of the
+    Mission panel; Go sends it to \topic{planner/go_to}.
+\end{itemize}
+
+The tests are gtests: the pure helpers (\code{src/common}), the panels in-process with an
+offscreen Qt and a fake server node, and every panel loaded through pluginlib
+(Appendix~\ref{app:trace}).

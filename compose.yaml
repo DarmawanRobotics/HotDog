@@ -1,0 +1,94 @@
+# Dev containers, one per ROS distro: scripts/dev.sh up --distro foxy|humble|jazzy
+# (or docker compose --profile jazzy up -d --build). Build artefacts live in per-distro volumes:
+# the build/ of one distro must never mix with another's.
+name: dharma
+
+x-dev: &dev
+  init: true
+  stdin_open: true
+  tty: true
+  shm_size: 1gb
+  environment:
+    VNC: ${VNC:-1}
+    VNC_PASSWORD: ${VNC_PASSWORD:-dharma}
+    VNC_RESOLUTION: ${VNC_RESOLUTION:-1600x900}
+    ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+
+x-build: &build
+  context: .
+  dockerfile: docker/Dockerfile
+
+services:
+  dev-foxy:
+    <<: *dev
+    profiles: [foxy]
+    build:
+      <<: *build
+      args:
+        ROS_DISTRO: foxy
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: dharma-dev:foxy
+    container_name: dharma-dev-foxy
+    hostname: dharma-foxy
+    ports:
+      - "127.0.0.1:5903:5901" # VNC (vnc://localhost:5903)
+      - "127.0.0.1:6082:6080" # noVNC (http://localhost:6082/vnc.html)
+    volumes:
+      - .:/home/robot/ws
+      - build-foxy:/home/robot/ws/build
+      - install-foxy:/home/robot/ws/install
+      - log-foxy:/home/robot/ws/log
+
+  dev-humble:
+    <<: *dev
+    profiles: [humble]
+    build:
+      <<: *build
+      args:
+        ROS_DISTRO: humble
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: dharma-dev:humble
+    container_name: dharma-dev-humble
+    hostname: dharma-humble
+    ports:
+      - "127.0.0.1:5901:5901" # VNC (vnc://localhost:5901)
+      - "127.0.0.1:6080:6080" # noVNC (http://localhost:6080/vnc.html)
+    volumes:
+      - .:/home/robot/ws
+      - build-humble:/home/robot/ws/build
+      - install-humble:/home/robot/ws/install
+      - log-humble:/home/robot/ws/log
+
+  dev-jazzy:
+    <<: *dev
+    profiles: [jazzy]
+    build:
+      <<: *build
+      args:
+        ROS_DISTRO: jazzy
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: dharma-dev:jazzy
+    container_name: dharma-dev-jazzy
+    hostname: dharma-jazzy
+    ports:
+      - "127.0.0.1:5902:5901" # VNC (vnc://localhost:5902)
+      - "127.0.0.1:6081:6080" # noVNC (http://localhost:6081/vnc.html)
+    volumes:
+      - .:/home/robot/ws
+      - build-jazzy:/home/robot/ws/build
+      - install-jazzy:/home/robot/ws/install
+      - log-jazzy:/home/robot/ws/log
+
+volumes:
+  build-foxy:
+  install-foxy:
+  log-foxy:
+  build-humble:
+  install-humble:
+  log-humble:
+  build-jazzy:
+  install-jazzy:
+  log-jazzy:

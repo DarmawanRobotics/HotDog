@@ -1,0 +1,82 @@
+\chapter{Interfaces reference}
+\label{ch:interfaces}
+
+All Dharma packages talk through the messages and services of \pkg{dharma_interfaces} 0.2.0 and
+standard ROS types; products add their own in their own package. The tables below are generated
+from \code{msg/} and \code{srv/}.
+
+\section{Conventions}
+
+\begin{itemize}
+  \item SI units, radians, REP-103 and REP-105 frames; units are written next to every field.
+  \item States are \code{uint8} constants, never free strings; \code{message} fields are for humans
+    only. Status topics are latched.
+  \item No \code{std_srvs/SetBool} for safety actions: a default request must never release or stop
+    something, so these are separate \code{std_srvs/Trigger} services.
+  \item \code{SectorScan}: \texttt{ranges <= BLOCKED} (0) or NaN is blocked or unknown and is an
+    obstacle at the robot; \texttt{>= range\_max} is free.
+  \item \code{Waypoint.yaw} is in radians (route CSV files store degrees for humans);
+    \texttt{dwell\_sec > 0} marks a stop point.
+  \item Paths in requests (\code{LoadFile}, \code{LoadPath}) must resolve inside the sites
+    directory.
+  \item Removed in 0.2.0: \code{Poi}, \code{PoiArray}, \code{Tour}, \code{TourArray},
+    \code{Visitors}, \code{MissionStatus}, \code{SavePoi}, \code{SaveTour}, \code{DeleteById};
+    \code{AvoidanceCommand.steering_bias} became \code{heading_offset} (rad) and
+    \code{yaw_rate_bias} (rad/s); \code{SectorScan.num_sectors} was dropped.
+\end{itemize}
+
+\section{Topics and services by package}
+
+\begin{small}
+\begin{longtable}{@{}p{0.38\textwidth}p{0.30\textwidth}p{0.24\textwidth}@{}}
+  \toprule
+  Name & Type & Server / publisher \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \topic{odometry/status} & OdometryStatus & odometry monitor \\
+  \topic{odometry/restarted} & std\_msgs/Empty & odometry monitor \\
+  \topic{localization/status} & LocalizationStatus & localization \\
+  \topic{localization/pose} & PoseWithCovarianceStamped & localization \\
+  \topic{localization/tag_markers} & MarkerArray & localization \\
+  \topic{localization/start}, \topic{reset}, \topic{assume_origin}, \topic{record_tags} & Trigger &
+    localization \\
+  \topic{localization/load_tags} & LoadFile & localization \\
+  \topic{perception/sector_scan}, \topic{perception/safety_scan} & SectorScan & lidar\_sector\_node \\
+  \topic{perception/obstacles} & MarkerArray & lidar\_sector\_node \\
+  \topic{/map}, \topic{mapping/grid} & OccupancyGrid & site manager, grid mapper \\
+  \topic{mapping/status} & MappingStatus & grid mapper \\
+  \topic{site/status} & SiteStatus & site manager \\
+  \topic{site/list}, \topic{site/load} & ListSites, LoadSite & site manager \\
+  \topic{mapping/start} & StartMapping & site manager \\
+  \topic{mapping/stop}, \topic{mapping/save} & Trigger & site manager \\
+  \topic{route/start}, \topic{route/stop} & Trigger & route recorder \\
+  \topic{route/mark_stop_point} & MarkStopPoint & route recorder \\
+  \topic{route/saved} & std\_msgs/String & route recorder \\
+  \topic{planner/go_to}, \topic{planner/plan}, \topic{planner/cancel} & GoTo, PlanPath, Trigger &
+    planner \\
+  \topic{planner/status}, \topic{planner/path}, \topic{planner/costmap} & PlannerStatus, Path,
+    OccupancyGrid & planner \\
+  \topic{navigation/set_path} & SetPath & follower \\
+  \topic{navigation/start}, \topic{stop}, \topic{pause}, \topic{resume} & Trigger & follower \\
+  \topic{navigation/status}, \topic{navigation/stop_point} & NavigationStatus, StopPointEvent &
+    follower \\
+  \topic{navigation/load_path} & LoadPath & path loader \\
+  \topic{navigation/waypoints}, \topic{navigation/path} & WaypointPath, Path & path loader \\
+  \topic{navigation/avoidance} & AvoidanceCommand & avoidance node \\
+  \topic{control/nav_cmd_vel} & Twist & follower, docking \\
+  \topic{docking/dock}, \topic{undock}, \topic{cancel} & Trigger & docking \\
+  \topic{docking/status}, \topic{docking/goal} & DockingStatus, PoseStamped & docking \\
+  tag frames on TF (\frm{charging_dock}, \ldots) & tf2\_msgs/TFMessage & apriltag, ArUco
+    detector, simulator \\
+  \topic{cmd_vel} & Twist & control mux (only) \\
+  \topic{control/status} & ControlStatus & control mux \\
+  \topic{control/set_mode} & SetMode & control mux \\
+  \topic{control/estop/engage}, \topic{control/estop/release} & Trigger & control mux \\
+  \topic{control/estop_request}, \topic{control/hw_estop} & String, Bool & to the control mux \\
+  \topic{health/status}, \topic{diagnostics} & HealthStatus, DiagnosticArray & health monitor \\
+\end{longtable}
+\end{small}
+
+\input{generated/interfaces}

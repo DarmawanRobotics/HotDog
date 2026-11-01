@@ -1,0 +1,180 @@
+\chapter{Simulation}
+\label{ch:sim}
+
+\pkg{dharma_sim} is a software-in-the-loop robot: one node, \code{sim_robot_node}, replaces the
+robot driver, the Livox Mid-360, its IMU and the LiDAR-inertial estimator, so the whole stack
+runs without hardware, in CI and on a laptop. It is kinematic (no Gazebo, no GPU). A product runs
+its own bringup against it with odometry \code{method:=external} and drives it like the real
+robot; its end-to-end tests run the same way.
+
+\section{Why the simulator models errors}
+
+The 0.1 simulator had perfect odometry and stamped everything with \code{now()} (finding S1). The
+code paths that handle drift (localization corrections, L1), map smearing (M1), a tilted start
+(O1) and stale TF (T1, T3) were therefore never exercised. Version 0.2.0 models them, with a seed
+so every run is reproducible.
+
+\section{Models}
+
+All models are pure Python and numpy in \code{dharma_sim/core} and unit-tested without ROS;
+\code{simulation.py} runs them on one clock.
+
+\begin{description}
+  \item[Body] (\code{body.py}). Omnidirectional or differential from \param{robot.kinematics}
+    (a \code{diff} robot never strafes), with the acceleration limits of the profile. It
+    integrates the \emph{measured} time step as an exact arc, clamped to \param{max_dt} (0.1 used a
+    fixed step per wall-timer tick, so the simulated robot slowed down under load, review \#14).
+    A command older than \param{cmd_timeout_sec} brakes the body to a stop, like the driver.
+    A contact of the footprint with the world stops the body and latches \topic{sim/collision}
+    (an obstacle dropped onto the robot counts as a contact).
+  \item[World] (\code{world.py}). Walls (polylines with a height) and circles (pillars, people,
+    boxes) with a height, from a YAML world in \code{config/worlds/}; dynamic circles from the
+    scenario or from \topic{sim/obstacles}. Ray casting is correct for origins inside a circle
+    (0.1 used $t = -b - \sqrt{\mathrm{disc}}$ there and was blind, review \#10), for tangent rays
+    and for circles behind the origin.
+  \item[LiDAR] (\code{lidar.py}). A Mid-360: \param{lidar.rings} elevations over the vertical
+    field of view from $-7^\circ$ to $52^\circ$ at the mount height (an obstacle lower than the
+    lowest beam is not seen, as on the robot), \param{azimuth_rays} rays per ring, 0.1--40~m,
+    floor returns of the downward rings, Gaussian range noise and random point dropout from the
+    seeded RNG. The cloud is dense enough for perception (well above \param{blind.min_points} in
+    the height band of the mall world).
+  \item[Odometry drift] (\code{odometry.py}). Every true step $\Delta\vect{T}$ of the body is
+    measured as
+    \begin{equation}
+      \vect{\xi} = \big((1+s)\,\Delta x,\ (1+s)\,\Delta y,\ \Delta\psi + b\,\Delta d\big) +
+      \vect{n}, \quad \vect{n} \sim \mathcal{N}(\vect{0}, \boldsymbol{\Sigma}\,\Delta s), \qquad
+      \T{odom}{base} \leftarrow \T{odom}{base} \oplus \vect{\xi},
+    \end{equation}
+    with the scale error $s$, the yaw bias $b$ per metre, the distance $\Delta d$ and the travel
+    $\Delta s = \Delta d + w_\psi |\Delta\psi|$ (\param{rotation_weight} $w_\psi$, so turning in
+    place drifts too). The variance grows linearly with the distance (a random walk, standard
+    deviation $\propto \sqrt{d}$) and the biases accumulate with it. An odometry restart starts a
+    new origin at the current pose, like a restarted estimator.
+  \item[Latency] (\code{latency.py}). Sensor messages carry $\tau = t - L$ and show the state of
+    that time (an interpolated pose history), so a late stamp is late data, not only a late
+    label; commands act $L$ after they arrive and become zero once stale. A clock jump back
+    clears the command queue.
+  \item[IMU] (\code{imu.py}). Specific force in g and yaw rate on \topic{/livox/imu}, so the
+    bridge levels at once. The IMU sits at $(0.011, 0.02329, -0.04412)$~m in \frm{livox_frame}
+    (Livox manual); FAST-LIO's \code{extrinsic_T} is the LiDAR in the IMU frame, its negative.
+    0.1 used FAST-LIO's $T_{IL}$ with the wrong sign (review \#11).
+  \item[Tag camera and dock] (\code{dock.py}). A camera with a fiducial detector at
+    \param{camera.mount_xyz}, turned by \param{camera.yaw_deg} (180: a rear camera): a tag of
+    \param{camera.tags} is published as TF \frm{base_link}$\to$tag while it is within
+    \param{camera.range_min}..\param{range_max}, inside \param{fov_deg}, seen less obliquely than
+    \param{max_incidence_deg} and not hidden by a wall (a ray cast to it), with position and yaw
+    noise. The world's \code{dock} puts the charging contacts \code{distance} in front of its
+    tag; the dock station answers \topic{sim/sit} (the body then ignores commands),
+    \topic{sim/stand} (refused while charging), \topic{sim/charge/start} (only sitting within
+    \code{tolerance} and \code{yaw_tolerance_deg} of the contacts) and \topic{sim/charge/stop};
+    while charging the battery gains \param{charge_per_hour} and \topic{battery} reports
+    \code{POWER_SUPPLY_STATUS_CHARGING} (\code{FULL} at 100~\%, \code{DISCHARGING} otherwise).
+    The mall world has \frm{charging_dock} on its west wall, contacts 0.75~m in front of it.
+\end{description}
+
+The body is planar: no gait, pitch or roll, no ceiling, no negative obstacles. Experiments that
+depend on body motion (the pitched floor of H13) or on the real estimator therefore need
+recorded data or the robot.
+
+\section{Robot-side contract}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}p{0.27\textwidth}X@{}}
+  \toprule
+  On the robot & In the simulator \\
+  \midrule
+  driver & subscribes \topic{/<ns>/cmd_vel}; publishes \topic{/<ns>/odom} (twist,
+    \param{robot.frames.odom}$\to$base) and \topic{/<ns>/battery} \\
+  Mid-360 and FAST-LIO2 & \topic{/cloud_registered_body} (PointCloud2 in \frm{body}),
+    \topic{/Odometry} and TF \frm{camera_init}$\to$\frm{body}, \topic{/livox/imu} \\
+  URDF & static TF \frm{base_link}$\to$\frm{livox_frame}$\to$\frm{livox_imu_frame} \\
+  a tag in view & publishes \topic{/initialpose} at the true pose while
+    \topic{localization/status} is \code{NONE} or not yet published
+    (\param{initial_pose_hz}, 0: off) \\
+  inspection at a stop point & \topic{sim/inspect} (\code{std_srvs/Trigger}) answers
+    \code{clear} \\
+  camera and tag detector & TF \frm{base_link}$\to$\frm{charging_dock} while the dock tag is in
+    view (\param{camera.*}) \\
+  sit, stand and charge & \topic{sim/sit}, \topic{sim/stand}, \topic{sim/charge/start},
+    \topic{sim/charge/stop} (Trigger); \topic{/<ns>/battery} reports charging \\
+  people and boxes & \topic{sim/obstacles} (PoseArray in the map frame) replaces the dynamic
+    circles \\
+  the truth & \topic{sim/ground_truth} (PoseStamped in \param{robot.frames.map}),
+    \topic{sim/collision} (Bool, latched) \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+With the localization bridge (\frm{odom}$\to$\frm{camera_init}, \frm{body}$\to$\frm{base_link})
+this gives \frm{odom}$\to$\frm{base_link}. Perception publishes \code{BLOCKED} scans unless it
+gets that chain; the mux forwards nothing without a fresh, stamped, 360° safety scan in
+\frm{base_link}. The simulator publishes no \topic{/livox/lidar} (the raw driver topic): the hub's
+\code{robot_bringup/config/sim.yaml} points health at \topic{/cloud_registered_body} instead.
+
+\section{Scenarios and site fixture}
+
+Scenarios are YAML files in \code{config/scenarios/} (times in seconds since start), loaded by
+the node (\param{scenario_file}, a path or a name) and by tests. A scenario may set the seed
+(it replaces the \param{seed} parameter, so the same file gives the same run), override the
+latency and odometry noise parameters, add circles that appear, move with $(v_x, v_y)$ and leave,
+silence sensors (\code{lidar}, \code{odometry}, \code{imu} or \code{all}) for a duration, and
+restart the odometry at given times. Independent generators are derived from the seed for the
+LiDAR, the odometry and the IMU (\code{numpy.random.SeedSequence}), so changing one model does
+not change the others' noise.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lcX@{}}
+  \toprule
+  Scenario & Seed & Content \\
+  \midrule
+  \code{drift} & 1 & $\sigma_{x,y} = 0.01$~m$/\sqrt{\mathrm{m}}$, $\sigma_\psi = 0.3^\circ/\sqrt{\mathrm{m}}$,
+    1\,\% scale error, $0.1^\circ$/m yaw bias: localization corrections (L1) \\
+  \code{person_crossing} & 2 & a person crosses the south corridor (8--30~s), a 0.5~m box stays
+    on the route from 20~s: avoidance, protective field, replanning \\
+  \code{sensor_faults} & 3 & latency 0.15~s LiDAR, 0.05~s odometry and commands; LiDAR (1.5~s),
+    odometry (0.8~s) and full (1~s) dropouts; an odometry restart at 40~s \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+The site fixture (\code{site_fixture.py}) rasterizes a world into a loadable site:
+\code{map.pgm} and \code{map.yaml} (map\_server trinary, with size and CRC), \code{tags.json} with
+the world's tag plates and \code{routes/*.csv} (\code{dharma_utils.io}). The launch argument
+\code{site:=mall_loop} draws it into \param{sites_dir} (default \code{/tmp/dharma_sim/sites})
+when the site has no map yet, including the taught loop \code{config/routes/mall_loop.csv}
+with one stop point; \pkg{dharma_mapping}'s site store reads it unchanged.
+
+\section{Launch}
+
+\begin{lstlisting}
+ros2 launch dharma_sim sim.launch.py robot_params:=robot.yaml site:=mall_loop
+ros2 launch dharma_sim sim.launch.py scenario:=person_crossing rviz:=true
+ros2 topic pub --once /sim/obstacles geometry_msgs/msg/PoseArray \
+  "{poses: [{position: {x: 2.0, y: -3.0}}]}"
+\end{lstlisting}
+
+Arguments: \code{params_file}, \code{robot_params}, \code{use_sim_time}, \code{log_level} (the
+launch contract of Section~\ref{sec:launch}), \code{world}, \code{scenario}, \code{robot_ns}
+(empty: from the parameter files), \code{site}, \code{sites_dir} and \code{rviz} (the
+\pkg{dharma_rviz} layout with the driver topics remapped).
+
+\section{Evaluation protocol}
+\label{sec:eval-protocol}
+
+The experiments of the paper are closed-loop simulations built from the pure \code{core/}
+modules of the packages: \pkg{dharma_sim}'s world, body, LiDAR, odometry drift, latency and
+scenario models drive the perception, control, localization and navigation cores at the node
+rates, without ROS, deterministic per seed. E1 measures the stopping distance against $D(v)$,
+E2 a blind LiDAR in AUTO and REMOTE, E3 the localization error with and without the EKF and scan
+matching under seeded odometry drift, E4 the path shift clearance and completion time with
+standing and crossing people. One end-to-end run of the real nodes
+(\texttt{ros2 launch robot\_bringup sim.launch.py}) checks the composition. The scripts, the raw
+results and the seeds of every condition are in the \code{experiments/} folder of the Dharma hub
+repository; the measured results are reported in the paper's evaluation (Section~VI of
+\code{docs/paper}) and not duplicated here.
+
+\section{Parameters}
+
+\readonlynote
+
+\input{generated/params_sim}

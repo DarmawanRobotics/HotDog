@@ -1,0 +1,136 @@
+\chapter{Odometry}
+\label{ch:odometry}
+
+\pkg{dharma_odometry} starts the LiDAR-inertial estimator behind one launch file, holds its
+start until the IMU is still and level, and monitors its output. The estimator publishes
+\frm{camera_init}$\to$\frm{body} and \topic{/Odometry}, starting from wherever the robot is at
+launch; it drifts slowly and \pkg{dharma_localization} keeps \frm{map}$\to$\frm{odom} on top of
+it. The defaults are for a Livox Mid-360 indoors.
+
+\section{Estimators}
+
+\begin{description}
+  \item[\code{method:=fast_lio}] (default). FAST-LIO2~\cite{xu2022fastlio2}, an iterated
+    error-state Kalman filter with state $(\mathbf{R}, \vect{p}, \vect{v}, \vect{b}_\omega,
+    \vect{b}_a, \vect{g})$: the IMU propagates, point-to-plane residuals of each LiDAR scan
+    correct. The initial gravity $\vect{g}_0$ is the mean acceleration of the first samples and
+    \frm{camera_init} is the IMU frame at that time. It runs with \texttt{extrinsic\_est\_en: false}
+    since the Mid-360 IMU is built in and factory calibrated (review finding \#8).
+  \item[\code{method:=leg_kilo}] Leg-KILO~\cite{ou2024legkilo} through the DarmawanRobotics fork
+    (headless viewer, the same \frm{odom}/\frm{body} frames as FAST-LIO, the
+    \topic{/cloud_registered_body} output). It runs in LIO mode with \texttt{init\_type: 2}
+    (gravity alignment: the start rotation aligns the mean acceleration with gravity). Its KILO
+    mode needs per-foot contact forces that most drivers do not publish.
+  \item[\code{method:=external}] another publisher of \topic{/Odometry} (the simulator); only the
+    monitor runs.
+\end{description}
+
+\section{\texorpdfstring{Start gate (\code{wait_still})}{Start gate (wait_still)}}
+\label{sec:wait-still}
+
+Both estimators take gravity and the IMU biases from their first samples, so they must start
+standing still. \code{wait_still} is the launch prefix of the estimator: it holds the start, and
+every respawn, until a window of \param{still_sec} (2~s) of IMU samples satisfies
+\begin{equation}
+  \max_k \|\vect{\omega}_k\| < \omega_{\max}, \qquad
+  \frac{\operatorname{std}_k \|\vect{f}_k\|}{\operatorname{mean}_k \|\vect{f}_k\|} <
+  \sigma_{\mathrm{rel}}, \qquad
+  \theta = \angle(\bar{\vect{f}}, \vect{z}) \le \theta_{\max},
+\end{equation}
+with $\omega_{\max} = 0.03$~rad/s, $\sigma_{\mathrm{rel}} = 1\,\%$ and $\theta_{\max} = 3^\circ$
+(it was $8^\circ$, finding O1). The relative spread is unit-free, so an IMU reporting $g$ (the
+Mid-360) or m/s$^2$ is handled alike. After \param{timeout_sec} it starts anyway with an error.
+
+\textbf{Why the tilt matters.} If the estimator starts tilted by $\theta$, its world frame is
+tilted and a horizontal distance $s$ appears as a height change and a shorter planar distance:
+\begin{equation}
+  \Delta z \approx s\sin\theta, \qquad \frac{\Delta s_{xy}}{s} = 1 - \cos\theta .
+\end{equation}
+\begin{center}
+\begin{tabular}{@{}rrrr@{}}
+  \toprule
+  $\theta$ & $\Delta z$ per metre & distance to a 0.5~m $z$ error & planar scale error \\
+  \midrule
+  2° & 3.5~cm & 14.3~m & 0.06\,\% \\
+  5° & 8.7~cm & 5.7~m & 0.38\,\% \\
+  8° (0.1 limit) & 13.9~cm & 3.6~m & 0.97\,\% \\
+  \bottomrule
+\end{tabular}
+\end{center}
+Mapping and perception filter obstacles in a height band above the floor. With an 8° start the
+floor 5~m ahead lies 0.7~m above the band of a level frame. Version 0.2.0 therefore lowers the
+gate limit to 3° \emph{and} levels \frm{odom} in the localization bridge
+(Section~\ref{sec:leveling}).
+
+\section{Monitor}
+
+\code{odometry_monitor_node} publishes \topic{odometry/status} (\code{OdometryStatus}, latched)
+and \topic{odometry/restarted}.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \toprule
+  State & When \\
+  \midrule
+  \code{INITIALIZING} & no \topic{/Odometry} yet (the gate is holding the estimator) \\
+  \code{LOST} & no \topic{/Odometry} for \param{stale_sec}; a jump or a restart, for
+    \param{hold_sec} \\
+  \code{DEGRADED} & $|z|$ above \param{max_z_drift_m} on a flat floor; \frm{odom} tilted against
+    gravity by more than \param{tilt.max_deg} while still; the speed test in alarm \\
+  \code{OK} & otherwise \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Jump.} A step between consecutive poses is a jump when it is longer than
+\param{jump.min_step_m} and faster than \param{jump.speed_factor} times the robot speed limit
+(\param{robot.limits}).
+
+\textbf{Restart} (review finding \#7). A fresh estimator starts at the identity pose. Being near
+the origin is not enough: a robot turning in place next to its start pose gets there too. A
+restart is a pose at the origin (within \param{restart.origin_radius_m} and
+\param{restart.origin_yaw_deg}) after a message gap longer than \param{restart.gap_sec}
+(respawn, gate) or after a translation jump back to the origin, or a stamp going back (bag loop,
+simulator reset). Yaw alone never counts. On a restart the monitor publishes
+\topic{odometry/restarted}: localization forgets \frm{map}$\to$\frm{odom} and levels again.
+
+\textbf{Speed residual test.} With the robot's own odometry (\param{leg_odom_topic}), the planar
+speeds are compared as a residual test with a one-sided CUSUM~\cite{page1954cusum}:
+\begin{equation}
+  r_k = v^{\mathrm{lio}}_k - v^{\mathrm{leg}}_k, \qquad
+  \chi^2_k = \frac{r_k^2}{\sigma_{\mathrm{lio}}^2 + \sigma_{\mathrm{leg}}^2}, \qquad
+  S_k = \max(0,\ S_{k-1} + \chi^2_k - \kappa),
+\end{equation}
+alarm while $S_k > h$. Under agreement $\chi^2_k$ follows $\chi^2(1)$ (mean 1), so
+$\kappa = 3.84$ (its 95\,\% quantile) lets the sum decay, while a lasting disagreement (a
+degenerate corridor, slipping feet, a stuck estimator) accumulates. The thresholds come from
+the sensor standard deviations, not from per-robot speeds. $S$ is bounded at $2h$ for a fast
+recovery. The test is off without leg odometry or while it is older than
+\param{speed.leg_timeout_sec}.
+
+\textbf{Tilt while still.} While the IMU is still, the gravity it measures, rotated into
+\frm{odom}, gives the tilt of \frm{odom} itself; above \param{tilt.max_deg} the estimator
+started tilted and $z$ will drift with distance. A robot standing on a ramp tilts its body, not
+\frm{odom}, and stays \code{OK}. This assumes the IMU axes are the \topic{/Odometry} body axes
+(true for FAST-LIO and Leg-KILO).
+
+\section{Parameters}
+
+\readonlynote
+
+\input{generated/params_odometry}
+
+\section{Launch}
+
+\begin{lstlisting}
+ros2 launch dharma_odometry odometry.launch.py                  # FAST-LIO2
+ros2 launch dharma_odometry odometry.launch.py method:=leg_kilo save_map:=true
+ros2 launch dharma_odometry odometry.launch.py method:=external  # simulator
+\end{lstlisting}
+
+Arguments: \code{method}, \code{params_file}, \code{robot_params}, \code{site_config},
+\code{use_sim_time}, \code{log_level}, \code{save_map}, \code{wait_still}, \code{respawn},
+\code{leg_odom_topic}, \code{fast_lio_params_file}, \code{leg_kilo_config_file},
+\code{leg_kilo_viewer}. A file argument that is set but missing fails the launch (finding
+\#17). The package no longer includes the localization launch file nor records routes (moved
+to \pkg{dharma_mapping}): odometry must not depend on a layer above it.

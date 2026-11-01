@@ -1,0 +1,4 @@
+# E4: a straight corridor, 3 m wide and 26 m long; the route runs along its centre line y = 0.
+walls:
+  - [[-1.0, -1.5], [25.0, -1.5], [25.0, 1.5], [-1.0, 1.5], [-1.0, -1.5]]
+start: [0.0, 0.0, 0.0]

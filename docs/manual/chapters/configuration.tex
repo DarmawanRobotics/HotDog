@@ -1,0 +1,159 @@
+\chapter{Configuration and robot profile}
+\label{ch:config}
+
+\section{The robot profile}
+
+Every node reads the same \param{robot.*} parameters into an immutable
+\code{dharma_utils.robot.RobotProfile}. The product passes them once, in its robot params file,
+to every node through the launch argument \code{robot_params}:
+
+\begin{lstlisting}
+/**:
+  ros__parameters:
+    robot:
+      name: quadruped_a
+      kinematics: omni          # omni: vx, vy, wz; diff: vx, wz
+      base_height: 0.35         # m, base_link above the floor when standing
+      footprint: {front: 0.40, rear: 0.40, half_width: 0.28}
+      limits:
+        max_vx: 0.8             # m/s
+        max_vy: 0.4             # m/s (0 for diff)
+        max_wz: 1.0             # rad/s
+        max_accel: 0.5          # m/s^2
+        max_decel: 0.6          # m/s^2, braking: measure it on the robot
+        max_yaw_accel: 1.5      # rad/s^2, yaw braking
+        reaction_time: 0.25     # s, command to braking (sensing + transport)
+      frames: {map: map, odom: odom, base: base_link}
+\end{lstlisting}
+
+\readonlynote
+
+\input{generated/params_robot}
+
+\subsection{Derived quantities}
+
+Nothing derived from the robot is configured separately:
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+  \toprule
+  Quantity & Derivation and users \\
+  \midrule
+  inscribed radius & $r_{\mathrm{in}} = \min(f, b, w)$: lethal radius of the planner (plus margin),
+    inner edge of the rotation ring \\
+  circumscribed radius & $r_{\mathrm{c}} = \sqrt{\max(f,b)^2 + w^2}$: oriented checks of the
+    planner, outer edge of the ring swept when turning, creep cap in REMOTE \\
+  self filter & footprint grown by a margin: perception, mapping \\
+  floor & \frm{base_link} minus \param{robot.base_height}: height bands of perception, mapping,
+    scan matching \\
+  lateral speed & $v_y = 0$ for \code{diff}: envelope, controllers, approach \\
+  braking model & $D(v) = v\,\tr + v^2/(2a)$ with \param{max_decel} and \param{reaction_time}:
+    speed profile, path shift, motion guard, protective field \\
+  jump limits & \param{max_vx}, \param{max_wz}: odometry monitor, mapping jump gate \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+For the default footprint $r_{\mathrm{in}} = 0.28$~m and $r_{\mathrm{c}} = 0.49$~m. The 0.1
+planner used a radius of 0.35~m for this footprint (finding N1): a path it accepted could bring
+a corner of the body about 14~cm into a wall when the robot turned or moved sideways in a
+narrow corridor.
+
+The profile validates cross-field consistency: \param{max_vy} must be 0 for \code{diff}
+kinematics and the three frames must differ.
+
+\subsection{Measuring the limits}
+\label{sec:measure-limits}
+
+\param{max_decel}, \param{max_yaw_accel} and \param{reaction_time} bound every speed limit in
+the stack through $D(v) = v\,\tr + v^2/(2a)$. The defaults (0.6~m/s$^2$, 1.5~rad/s$^2$, 0.25~s)
+are placeholders: measure them on the robot before it drives on its own, in the worst case
+(slippery floor, full payload, low battery). \code{docs/manual/tools/brake_test.py} sends step
+commands through the mux and analyses the recorded speed.
+
+\begin{enumerate}
+  \item \textbf{Prepare.} A flat, open area of at least three stopping distances at
+    \param{max_vx} in the driving direction, people kept away, the hardware e-stop at hand
+    (channel~1). Start the bringup with the default (conservative) limits.
+  \item \textbf{Switch the mux to REMOTE} with the source the tool uses:
+\begin{lstlisting}
+ros2 service call /control/set_mode dharma_interfaces/srv/SetMode \
+  "{mode: remote, source: dashboard}"
+\end{lstlisting}
+  \item \textbf{Record step runs}, at least three per speed, at several speeds up to
+    \param{max_vx}, and the same for yaw up to \param{max_wz}:
+\begin{lstlisting}
+python3 brake_test.py drive --speed 0.5 --odom /<ns>/odom --out lin_0.5_1.csv
+python3 brake_test.py drive --axis angular --speed 1.0 --odom /<ns>/odom --out yaw_1.0_1.csv
+\end{lstlisting}
+    The tool sends zeros for 1~s (the mux re-arms on neutral commands), the speed for 3~s, then
+    zeros, on \topic{control/remote/<source>/cmd_vel} at 50~Hz, and records the twist of an
+    Odometry topic with the exact times of the command changes. Use the estimator's
+    \topic{/Odometry} instead of the driver's when the driver twist is unreliable (legged
+    robots).
+  \item \textbf{Analyse.} \texttt{python3 brake\_test.py analyze lin\_*.csv} prints, per run,
+    the speed before the step $v_0$, the reaction time, the deceleration and the measured and
+    modelled stopping distances, then the worst values. The deceleration is a line fitted between
+    80\,\% and 20\,\% of $v_0$; the reaction time runs from the step command to where that line
+    meets $v_0$, so it contains the mux, the transport, the driver and the odometry delay.
+  \item \textbf{Configure} in the robot profile: \param{max_decel} and \param{max_yaw_accel} the
+    smallest measured decelerations, and \param{reaction_time} the largest measured reaction
+    \emph{plus} the sensing delay the step test does not see: the mean of
+    \texttt{ros2 topic delay /perception/safety\_scan} and one LiDAR frame period (an obstacle
+    that appears just after a frame starts is published with the next one). Then add margin.
+  \item \textbf{Verify} with the new profile: repeat the fastest runs; every measured stopping
+    distance must stay below $D(v_0)$ of the configured values.
+\end{enumerate}
+
+\textbf{Example.} The \code{demo} subcommand records the same step on \pkg{dharma_sim}'s body
+model with known values (deceleration 0.6~m/s$^2$, command latency 0.12~s, speed noise 1~cm/s),
+so the analysis can be checked; these are simulated runs, not a robot measurement:
+\begin{lstlisting}
+$ for v in 0.3 0.5 0.8; do brake_test.py demo --speed $v --out run_$v.csv; done
+$ brake_test.py analyze run_*.csv
+run                          v0  t_r [s]      a  D meas  D model
+run_0.3.csv               0.298    0.099  0.588   0.105    0.105
+run_0.5.csv               0.498    0.115  0.622   0.257    0.257
+run_0.8.csv               0.798    0.090  0.590   0.613    0.611
+worst of 3 runs: reaction 0.115 s, deceleration 0.588
+\end{lstlisting}
+The body applies a new command over the 20~ms step that ends when it becomes active, so its
+deceleration starts at 0.100~s; noise-free runs give exactly 0.100~s and 0.600~m/s$^2$. With
+1~cm/s of noise single runs scatter by about $\pm 0.015$~s and $\pm 4$\,\%, which is why the
+worst of several runs is configured. In this example the profile would get
+\param{max_decel} below 0.588 and \param{reaction_time} above 0.115~s plus the sensing delay.
+
+\section{Typed parameters}
+
+Each node declares its configuration as frozen dataclasses with
+\code{dharma_utils.config.param} fields (default, \code{doc}, \code{unit}, \code{min}, \code{max}, \code{choices}, \code{live})
+and \code{nested(...)} sections (dotted names such as \code{speed.cruise}). \code{DharmaNode}:
+\begin{itemize}
+  \item declares every field as a ROS parameter with a descriptor (description, unit, range,
+    read-only for \code{live=False}): \texttt{ros2 param describe <node> <name>} shows it;
+  \item validates all values at start (ranges, choices, types and the cross-field
+    \code{validate()} of the dataclass) and refuses to start on a safety value that fails;
+  \item validates every \texttt{ros2 param set} the same way and rejects an invalid value with
+    the reason, keeping the old one;
+  \item reports parameters in the YAML files that no dataclass declares (typos).
+\end{itemize}
+
+Safety values (margins, timeouts, limits) are read-only at runtime. Defaults live in the
+dataclasses; the package's \code{config/<pkg>.yaml} contains only what differs and
+documentation. Each subsystem chapter lists its parameters, generated from the dataclasses by
+\code{docs/manual/tools/reference.py}.
+
+\section{Parameter files and launch}
+\label{sec:launch}
+
+A product layers its files over the package defaults:
+\begin{enumerate}
+  \item the package defaults \code{config/<pkg>.yaml};
+  \item the robot profile (\code{robot_params}), shared by every node;
+  \item a stack or site file (\code{params_file}) with per-node overrides;
+  \item non-empty launch arguments (an empty argument never overrides a file; a file argument
+    that is set but missing fails the launch).
+\end{enumerate}
+
+Paths accept \code{~} and \code{$VAR}. Paths received through services (tags files, routes,
+sites) must resolve inside \code{sites_dir} (\code{dharma_utils.io.resolve_inside}); a request
+that escapes it is refused.
