@@ -10,7 +10,7 @@ detection with the Hertzinno HZ-FA-371 at every stop point, a watchdog that brin
 reports in the browser and alerts on Telegram. Built on the Dharma stack.**
 
 [![CI](https://github.com/DarmawanRobotics/HotDog/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DarmawanRobotics/HotDog/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-manual%20%C2%B7%20technician%20%C2%B7%20SAT-1F6FB2)](docs/README.md)
+[![Docs](https://img.shields.io/badge/docs-darmawanrobotics.github.io%2FHotDog-1F6FB2)](https://darmawanrobotics.github.io/HotDog/)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Foxy-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/foxy/)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04-E95420?logo=ubuntu&logoColor=white)](https://releases.ubuntu.com/20.04/)
 [![Dharma](https://img.shields.io/badge/stack-Dharma-4A78C2)](dharma.repos)
@@ -31,10 +31,11 @@ with the M20's own odometry instead of a LiDAR-inertial estimator and without ma
 taught and repeated from the dock. The robot, its LiDARs and their drivers come from
 [external.repos](external.repos).
 
-**Guides:** the [User Manual](docs/HotDog-User-Manual.pdf) for operators, the
-[Technician Guide](docs/HotDog-Technician-Guide.pdf) for tuning and maintenance, the
-[Site Acceptance Test](docs/HotDog-Site-Acceptance-Test.pdf) for the handover. More in
-[docs](docs/README.md).
+**Docs: [darmawanrobotics.github.io/HotDog](https://darmawanrobotics.github.io/HotDog/)**, with
+the [User Manual](docs/HotDog-User-Manual.pdf) for operators, the
+[Technician Guide](docs/HotDog-Technician-Guide.pdf) for tuning and maintenance and the
+[Site Acceptance Test](docs/HotDog-Site-Acceptance-Test.pdf) for the handover, also as A5 PDFs.
+More in [docs](docs/README.md).
 
 ![HotDog: the M20 with its LiDARs, pod and acoustic camera, the payload computer, the operator, reports and alerts](docs/manual/img/system.png)
 
@@ -148,7 +149,7 @@ Reports: `http://<robot>:8088/`. Alerts: the crew's Telegram group. Day to day: 
 HotDog/
 ├── .github/workflows/ci.yml   lint, scripts, Foxy build and tests (dharma.repos + external.repos)
 ├── .devcontainer/ compose.yaml docker/   dev container (Foxy, VNC)
-├── docs/                      commissioning and operations
+├── docs/                      guides (PDF + the VitePress site), commissioning, operations
 ├── dharma.repos external.repos   the stack and the robot's drivers (vcstool)
 ├── scripts/                   setup.sh (robot), dev.sh (container), start_tmux.sh, timesync.sh
 └── src/

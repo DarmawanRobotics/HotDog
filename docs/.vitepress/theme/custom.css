@@ -1,0 +1,297 @@
+/* HotDog's colours, as in the PDF guides and the logo: navy, blue, amber on paper. */
+:root {
+  --hd-navy: #0f2742;
+  --hd-amber: #ffb020;
+  --vp-font-family-base: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --vp-font-family-mono: "JetBrains Mono", ui-monospace, monospace;
+  --vp-c-bg: #f6f8fa;
+  --vp-c-bg-alt: #edf1f4;
+  --vp-c-bg-soft: #e8edf1;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-text-1: #16212a;
+  --vp-c-text-2: #4a5b66;
+  --vp-c-text-3: #7d8b93;
+  --vp-c-divider: #d5dde2;
+  --vp-c-gutter: #dfe5e9;
+  --vp-c-brand-1: #1f6fb2;
+  --vp-c-brand-2: #185a92;
+  --vp-c-brand-3: #1f6fb2;
+  --vp-c-brand-soft: #e3edf7;
+  --vp-button-brand-bg: #1f6fb2;
+  --vp-button-brand-hover-bg: #185a92;
+  --vp-button-brand-active-bg: #134a78;
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(115deg, #0f2742 35%, #1f6fb2);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, #ffb02055 20%, #1f6fb244 80%);
+  --vp-home-hero-image-filter: blur(56px);
+  --vp-custom-block-tip-bg: #e3edf7;
+  --vp-custom-block-tip-text: #134a78;
+}
+
+.dark {
+  --vp-c-bg: #0a1624;
+  --vp-c-bg-alt: #0d1b2c;
+  --vp-c-bg-soft: #112338;
+  --vp-c-bg-elv: #10203a;
+  --vp-c-text-1: #e3ebf2;
+  --vp-c-text-2: #a9b9c7;
+  --vp-c-text-3: #74879a;
+  --vp-c-divider: #1f3550;
+  --vp-c-gutter: #07111d;
+  --vp-c-brand-1: #5aa6e6;
+  --vp-c-brand-2: #82bdf0;
+  --vp-c-brand-3: #2f7fc4;
+  --vp-c-brand-soft: #14304d;
+  --vp-button-brand-text: #07111d;
+  --vp-button-brand-bg: #5aa6e6;
+  --vp-button-brand-hover-text: #07111d;
+  --vp-button-brand-hover-bg: #82bdf0;
+  --vp-button-brand-active-text: #07111d;
+  --vp-home-hero-name-background: linear-gradient(115deg, #ffb020 30%, #ffd27a);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, #ffb02040 20%, #2f7fc455 80%);
+  --vp-custom-block-tip-bg: #14304d;
+  --vp-custom-block-tip-text: #cfe3f5;
+}
+
+/* Headings in the condensed face of the PDFs. */
+.VPHero .name,
+.VPHero .text,
+.VPFeature .title,
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4 {
+  font-family: "Barlow Semi Condensed", "Barlow", sans-serif;
+  letter-spacing: 0;
+}
+.vp-doc h1 {
+  font-weight: 700;
+}
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4 {
+  font-weight: 600;
+}
+.VPHero .text {
+  font-weight: 600;
+}
+.vp-doc table {
+  font-size: 14px;
+}
+.vp-doc th {
+  background: var(--vp-c-brand-soft);
+}
+.vp-doc img {
+  border-radius: 10px;
+  border: 1px solid var(--vp-c-divider);
+}
+.vp-doc img.diagram {
+  background: #ffffff;
+  padding: 6px;
+}
+.vp-doc pre,
+.vp-doc code {
+  font-variant-ligatures: none;
+}
+
+/* The layer diagram of the overview: box drawing, small enough not to scroll. */
+.vp-doc .arch div[class*="language-"] code {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* Severities, as in the User Manual. */
+.sev {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 22px;
+}
+.sev-normal {
+  background: #2e7d32;
+}
+.sev-attention {
+  background: #b7860b;
+}
+.sev-warning {
+  background: #e65100;
+}
+.sev-critical {
+  background: #c62828;
+}
+
+/* A guide: chapters and sections numbered as in its PDF ("section 3.3"). */
+.guide .vp-doc {
+  counter-reset: chapter;
+}
+.guide .vp-doc h2 {
+  counter-increment: chapter;
+  counter-reset: section;
+}
+.guide .vp-doc h3 {
+  counter-increment: section;
+}
+.guide .vp-doc h2::before,
+.guide .vp-doc h3::before {
+  color: var(--vp-c-brand-1);
+  margin-right: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.guide .vp-doc h2::before {
+  content: counter(chapter);
+}
+.guide .vp-doc h3::before {
+  content: counter(chapter) "." counter(section);
+}
+
+/* The head of a guide: subtitle, version, PDF, audience. */
+.guide-meta {
+  margin: 8px 0 32px;
+  padding: 16px 20px;
+  border: 1px solid var(--vp-c-divider);
+  border-left: 4px solid var(--hd-amber);
+  border-radius: 10px;
+  background: var(--vp-c-bg-soft);
+}
+.vp-doc .guide-meta p {
+  margin: 0;
+}
+.vp-doc .guide-subtitle {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--vp-c-text-1);
+}
+.guide-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 10px 0;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+.guide-version {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--hd-navy);
+  color: #ffffff;
+  font-weight: 600;
+}
+.dark .guide-version {
+  background: var(--hd-amber);
+  color: #07111d;
+}
+.vp-doc a.guide-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.vp-doc a.guide-pdf:hover {
+  background: var(--vp-button-brand-hover-bg);
+  color: var(--vp-button-brand-hover-text);
+}
+.guide-pdf svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.vp-doc .guide-audience {
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+.guide-about {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+.guide-about summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+.vp-doc .guide-about p {
+  margin: 8px 0;
+}
+.vp-doc .guide-about table {
+  margin: 8px 0 0;
+}
+
+/* Home: the system under the features, then the three guides. */
+.home-shot {
+  max-width: 1152px;
+  margin: 72px auto 0;
+  padding: 0 24px;
+}
+.home-shot img {
+  width: 100%;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--vp-c-divider);
+  background: #ffffff;
+  box-shadow: 0 30px 60px -30px rgb(15 39 66 / 0.35);
+}
+.home-shot figcaption {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+.home-guides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 1152px;
+  margin: 56px auto 24px;
+  padding: 0 24px;
+}
+.home-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 22px;
+  border: 1px solid var(--vp-c-divider);
+  border-top: 3px solid var(--hd-amber);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+}
+.home-guide h3 {
+  margin: 0;
+  font-family: "Barlow Semi Condensed", "Barlow", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+.home-guide p {
+  margin: 0;
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+.home-guide .links {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.home-guide .links a {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+}
+.home-guide .links a:hover {
+  text-decoration: underline;
+}

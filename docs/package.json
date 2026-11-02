@@ -1,0 +1,17 @@
+{
+  "name": "hotdog-docs",
+  "private": true,
+  "description": "HotDog's documentation site: the guides of docs/ built with VitePress for GitHub Pages",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "@fontsource/barlow": "^5.2.5",
+    "@fontsource/barlow-semi-condensed": "^5.2.5",
+    "@fontsource/jetbrains-mono": "^5.2.5",
+    "vitepress": "^1.6.4"
+  }
+}
