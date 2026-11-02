@@ -39,13 +39,16 @@ tests; check that `colcon test-result` reports your tests, not 0.
 ## Commits, branches and pull requests
 
 - [Conventional Commits](https://www.conventionalcommits.org), one short line:
-  `fix(mux): rotation inside the field`, `refactor(follower): split the state machine`,
-  `feat(bringup)!: ...` for a breaking change.
+  `fix(patrol): the way back starts at the nearest point`, `feat(reports): retention`,
+  `feat(bringup)!: ...` for a breaking change. Scopes are the packages without `hotdog_`
+  (`bringup` for `hotdog`) and `scripts`, `docs`, `ci`, `docker`.
 - Branches `fix/<topic>`, `feat/<topic>`, `refactor/<topic>`, `docs/<topic>`, `ci/<topic>`; one
   topic per pull request into `main`, merged with a merge commit (no squash). CI must be green
   on Foxy.
-- A change across several repositories uses the **same branch name** in each: CI builds the
-  dependencies from that branch when it exists, so the pieces are tested together.
+- A change that needs a Dharma change uses the **same branch name** in both repositories: CI
+  builds the `dharma_*` repositories from that branch when it exists, so they are tested
+  together; afterwards pin the merged Dharma commit in `dharma.repos`.
+- Commits are authored by you, unsigned or signed with your own key.
 - Safety-relevant changes (speeds, limits, e-stop, avoidance, the control mux, the robot
   profile) need a test that drives the logic, a note on how it was tried on the robot (slow,
   open area, someone at the e-stop) and a CHANGELOG entry.
@@ -54,5 +57,6 @@ tests; check that `colcon test-result` reports your tests, not 0.
 
 Every repository follows [SemVer](https://semver.org) with a [Keep a
 Changelog](https://keepachangelog.com) `CHANGELOG.md`. A release bumps `package.xml` (and
-`setup.py`), moves `[Unreleased]` to `## [x.y.z] - date` and is tagged `vx.y.z` on `main`. The
-stack moves together: products pin the released tags in their `dharma.repos`.
+`setup.py`) of every package, moves `[Unreleased]` to `## [x.y.z] - date`, rebuilds the PDF
+guides and is tagged `vx.y.z` on `main`. HotDog pins the Dharma commits it was tested with in
+`dharma.repos` and the robot packages in `external.repos`.
