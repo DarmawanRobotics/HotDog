@@ -45,7 +45,7 @@ taught and repeated from the dock. The robot, its LiDARs and their drivers come 
 | [`hotdog`](src/hotdog)                                                                                                                                                                                                         | the robot: profile, M20 driver settings, stack config, `robot.launch.py`, `sim.launch.py`                   |
 | [`hotdog_base`](src/hotdog_base)                                                                                                                                                                                               | both RoboSense Airy as one leveled cloud in `base_link`, the shared launch helpers                          |
 | [`hotdog_inspection`](src/hotdog_inspection)                                                                                                                                                                                   | inspection at the stop points: overheat (UniPod MT11), partial discharge (HZ-FA-371), reports, teaching     |
-| [`hotdog_patrol`](src/hotdog_patrol)                                                                                                                                                                                           | patrols from the dock, on demand or on a schedule, patrol summaries, back to the dock                       |
+| [`hotdog_patrol`](src/hotdog_patrol)                                                                                                                                                                                           | patrols from the dock, on demand or on a schedule, the watchdog, the way back to the dock, patrol summaries |
 | [`hotdog_reports`](src/hotdog_reports)                                                                                                                                                                                         | HTML patrol reports with the last round of every finding, retention, the report server on port 8088         |
 | [`hotdog_alerts`](src/hotdog_alerts)                                                                                                                                                                                           | findings, patrols and health ERROR to Telegram (English or Bahasa Indonesia) and a webhook, spooled offline |
 | [`hotdog_interfaces`](src/hotdog_interfaces)                                                                                                                                                                                   | findings, inspection reports and status, `AddTarget`                                                        |
@@ -69,8 +69,9 @@ taught and repeated from the dock. The robot, its LiDARs and their drivers come 
 
 ```
                  ┌────────────────────────────────────────────────────────────────────┐
- HotDog          │ patrol_node: dock -> route -> dock, schedule, patrol summaries     │
+ HotDog          │ patrol_node: dock -> route -> dock, schedule, watchdog, way back   │
                  │ inspection_node: overheat (UniPod MT11), partial discharge (HZ-FA) │
+                 │ report_node: pages on :8088 · alert_node: Telegram, webhook        │
                  ├────────────────────────────────────────────────────────────────────┤
  Dharma          │ path follower (stop points -> inspection hook) · avoidance         │
                  │ sites and taught routes · localization (dock = map origin)         │
@@ -109,16 +110,17 @@ the `dharma_*` repositories:
 
 ```bash
 git clone git@github.com:DarmawanRobotics/HotDog.git ~/dev/HotDog && cd ~/dev/HotDog
-scripts/setup.sh install                 # tools, repos, rosdep, build
-scripts/setup.sh install service         # /etc/hotdog/hotdog.env + systemd unit at boot
-sudoedit /etc/hotdog/hotdog.env          # ROBOT_IP, SITE, DRIVER_PARAMS, POD_IP, HERTZINO_PASSWORD
+scripts/setup.sh install                 # tools, repos, rosdep, build, the hotdog command
+scripts/setup.sh install service timesync   # /etc/hotdog/hotdog.env, systemd unit, chrony
+sudoedit /etc/hotdog/hotdog.env          # ROBOT_IP, SITE, PARAMS_FILE, POD_IP, HERTZINO_PASSWORD,
+                                         # TELEGRAM_BOT_TOKEN
 sudo systemctl start hotdog && journalctl -fu hotdog
 scripts/setup.sh                         # every line ok?
 ```
 
 The first time on a robot or a site: [docs/commissioning.md](docs/commissioning.md) (network,
-M20 calibration, LiDARs, pod, acoustic camera, time). Day to day:
-[docs/operations.md](docs/operations.md).
+M20 calibration, LiDARs, pod, acoustic camera, alerts, time), then the
+[Site Acceptance Test](docs/HotDog-Site-Acceptance-Test.pdf).
 
 ## Operate
 
@@ -128,7 +130,8 @@ On the robot computer, the `hotdog` command ([scripts/hotdog.sh](scripts/hotdog.
 hotdog status                                   # the robot at a glance
 hotdog stand && hotdog teach start              # teach from the dock, drive with the M20 remote
 hotdog teach point                              # a stop point at each piece of equipment
-hotdog teach target bay1_ds_clamps strips=3 acoustic   # the pod's view there
+hotdog aim 35 -10 4                             # point the pod: yaw, pitch (deg), zoom
+hotdog teach target bay1_ds_clamps strips=3 acoustic   # what it sees there
 hotdog teach stop && hotdog dock
 hotdog patrol                                   # the route patrolled last (or name one)
 hotdog schedule on                              # times and route: patrol_node in the site file
@@ -136,8 +139,8 @@ hotdog return                                   # back to the dock along the rou
 hotdog estop                                    # latched, until `hotdog release`
 ```
 
-Reports: `http://<robot>:8088/`. Alerts: the crew's Telegram group. Day to day:
-[docs/operations.md](docs/operations.md).
+Reports: `http://<robot>:8088/`. Alerts: the crew's Telegram group. Day to day: the
+[User Manual](docs/HotDog-User-Manual.pdf) and [docs/operations.md](docs/operations.md).
 
 ## Develop
 

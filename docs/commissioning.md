@@ -36,9 +36,10 @@ permit; nothing else needs to be open towards the robot.
 
 ```bash
 git clone git@github.com:DarmawanRobotics/HotDog.git ~/dev/HotDog && cd ~/dev/HotDog
-scripts/setup.sh install
+scripts/setup.sh install                     # tools, repos, rosdep, build, the hotdog command
 scripts/setup.sh install service timesync
 sudoedit /etc/hotdog/hotdog.env
+source ~/.bashrc                             # the hotdog command in this shell
 ```
 
 | Variable             |                                                                      |
@@ -104,21 +105,22 @@ known defect) and compare the report with the camera's own result.
 
 The dock is the origin of everything HotDog teaches:
 
-1. Put the M20 on its dock, start HotDog (`sudo systemctl start hotdog`), wait for
-   `/localization/status` `LOCALIZED` (the odometry start is the origin).
+1. Put the M20 on its dock, start HotDog (`sudo systemctl start hotdog`); `hotdog status` shows
+   localize `LOCALIZED` (the odometry start is the origin).
 2. Set the site: `SITE=<name>` in the env file (a new name creates the site), or
-   `ros2 service call /site/load dharma_interfaces/srv/LoadSite "{site: <name>}"`.
+   `hotdog site <name>`.
 3. Teach the route from the dock ([docs/operations.md](operations.md#teach-a-route)), with a
    target at each stop.
-4. Set the day's air temperature (`thermal.ambient_c`), then run the first patrol at a low
-   cruise speed (`path_follower_node speed.cruise: 0.3` in the site file) and check the reports.
+4. Set the day's air temperature (`hotdog ambient 33`), then run the first patrol at a low
+   cruise speed (`path_follower_node speed.cruise: 0.3` in the site file) and check the reports
+   (`http://<robot>:8088/`).
 
 ## 9. Alerts
 
 [hotdog_alerts: Set up](../src/hotdog_alerts/README.md#set-up): the bot token in the env file,
 the crew's group in `alert_node` `telegram.chat_ids` of the site file, `robot_name`,
 `language: id` when the crew prefers it, and `report_url` as the crew's phones reach the
-robot. `ros2 service call /alerts/test std_srvs/srv/Trigger` must arrive in the group.
+robot. `hotdog alert-test` must arrive in the group.
 
 ## 10. Time
 
