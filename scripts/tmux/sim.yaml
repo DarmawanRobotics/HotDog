@@ -17,4 +17,4 @@ windows:
       - shell_command: >-
           # ros2 topic pub --once /sim/obstacles geometry_msgs/msg/PoseArray
           "{poses: [{position: {x: 2.0, y: -3.0}}]}"
-      - shell_command: watch -n 2 ros2 topic echo --once /navigation/status
+      - shell_command: watch -n 5 scripts/hotdog.sh status
