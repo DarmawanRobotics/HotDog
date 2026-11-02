@@ -1,0 +1,84 @@
+name: Docs
+
+# The site at https://darmawanrobotics.github.io/HotDog/: built from docs/ (VitePress) on every
+# pull request that touches it, published from main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "src/*/README.md"
+      - "src/*/config/*.yaml" # the parameter reference
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "src/*/README.md"
+      - "src/*/config/*.yaml"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.pages.outputs.publish }}
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      # Publishing needs GitHub Pages on (Settings → Pages → Source: GitHub Actions). Until then,
+      # or on a pull request, the site is built to catch errors and not published.
+      - id: pages
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GitHub Pages is off::The docs were built, not published. Turn on Settings → Pages → Source: GitHub Actions, then re-run this workflow."
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # "last updated" of every page
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - uses: actions/configure-pages@v5
+        if: steps.pages.outputs.publish == 'true'
+      - run: npm run build # python3 docs/pdf/parameters.py runs inside: standard library only
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.publish == 'true'
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
