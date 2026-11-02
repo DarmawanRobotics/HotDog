@@ -11,8 +11,9 @@
 #   the distribution's pool) and serves the robot's other computers in TIME_ALLOW (space
 #   separated subnets, e.g. "192.168.123.0/24"). `local stratum 10` keeps serving them without
 #   internet. Replaces systemd-timesyncd.
-# ptp: ptp4l is the PTP master on the network interface of the LiDAR, so a Livox Mid-360 (PTPv2
-#   over UDP) stamps its points with this computer's clock. The interface is PTP_IFACE, else the
+# ptp: ptp4l is the PTP master on the network interface of the LiDAR, so a LiDAR that takes PTPv2
+#   over UDP stamps its points with this computer's clock. HotDog does not need it: its Airy are
+#   stamped on arrival (rslidar.yaml use_lidar_clock: false). The interface is PTP_IFACE, else the
 #   one that routes to LIDAR_IP (or LIVOX_IP); without either, PTP is skipped.
 #   PTP_TIMESTAMPING=software (default, any interface) or hardware (the interface's own clock,
 #   kept on the system clock by phc2sys).
@@ -122,7 +123,7 @@ ptp_config() { # ptp_config <ptp4l major version>
     local only=masterOnly
     [[ "${1:-3}" -ge 4 ]] && only=serverOnly
     cat <<EOF
-# Written by scripts/timesync.sh: PTP master for the LiDAR (Livox Mid-360: PTPv2 over UDP).
+# Written by scripts/timesync.sh: PTP master for the LiDAR (PTPv2 over UDP).
 [global]
 $only 1
 priority1 127
