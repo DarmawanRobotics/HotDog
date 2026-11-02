@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Dev container helper (Linux / macOS): one container per ROS distro, see compose.yaml.
+# Dev container helper (Linux / macOS): ROS 2 Foxy as on the robot, see compose.yaml.
 #
-#   scripts/dev.sh [--distro foxy|humble|jazzy] <command> [args]
+#   scripts/dev.sh <command> [args]
 #
 #   up             import the stack if missing, build the image if needed, start the container
 #   shell          interactive shell inside (ROS and the workspace sourced)
@@ -9,12 +9,12 @@
 #   test [args]    colcon test + colcon test-result inside
 #   vnc            print the VNC / noVNC addresses (opens Screen Sharing on macOS)
 #   down           stop and remove the container (build/install/log volumes are kept)
-#   clean          down, then delete this distro's build/install/log volumes
+#   clean          down, then delete the build/install/log volumes
 #   import [--update]  vcs import dharma.repos and external.repos into src/ (--update: move
 #                  existing checkouts to the listed versions too); plain git without vcstool
 #   doctor         check Docker, compose, CPU / memory, the architecture and GitHub access
 #
-# Env: DHARMA_DISTRO (default distro, foxy), VNC_PASSWORD (dharma), VNC=0 (no desktop),
+# Env: VNC_PASSWORD (dharma), VNC=0 (no desktop),
 #      USER_UID / USER_GID (container user; default: yours on Linux, 1000 on macOS, where
 #      Docker Desktop maps file ownership of the bind mount itself)
 # Runs on the bash 3.2 of macOS: no empty "${array[@]}" under set -u, no bash 4 features.
@@ -26,23 +26,11 @@ usage() {
     sed -n '2,/^set -/p' "$0" | sed -e '$d' -e 's/^# \{0,1\}//'
 }
 
-DISTRO="${DHARMA_DISTRO:-foxy}"
-ARGS=()
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --distro) DISTRO="${2:-}"; shift 2 || { usage; exit 1; } ;;
-        --distro=*) DISTRO="${1#*=}"; shift ;;
-        -h | --help) usage; exit 0 ;;
-        *) ARGS+=("$1"); shift ;;
-    esac
-done
-set -- "${ARGS[@]+"${ARGS[@]}"}"
-case "$DISTRO" in
-    foxy) VNC_PORT=5903 NOVNC_PORT=6082 ;;
-    humble) VNC_PORT=5901 NOVNC_PORT=6080 ;;
-    jazzy) VNC_PORT=5902 NOVNC_PORT=6081 ;;
-    *) echo "unknown distro '$DISTRO': foxy, humble or jazzy" >&2; exit 1 ;;
+DISTRO=foxy # the robot's: Ubuntu 20.04, ROS 2 Foxy
+case "${1:-}" in
+    -h | --help) usage; exit 0 ;;
 esac
+VNC_PORT=5903 NOVNC_PORT=6082
 SERVICE="dev-$DISTRO"
 if [[ "$(uname -s)" == Linux ]]; then
     # the bind-mounted workspace stays yours: the container user gets your uid / gid

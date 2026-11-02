@@ -1,4 +1,6 @@
-# scripts/start_tmux.sh robot: the stack on the robot, one window per subsystem.
+# scripts/start_tmux.sh robot: the stack on the robot, one window per subsystem (for debugging:
+# the service runs the same with `ros2 launch hotdog robot.launch.py`; stop it first).
+# For this robot's settings add params_file:=/etc/hotdog/site.yaml to BRINGUP_ARGS.
 session_name: robot
 environment:
   ROBOT_NS: m20
@@ -6,6 +8,7 @@ environment:
   ROBOT_IP: 10.21.31.103
   SITE: ""
   SITES_DIR: ""
+  POD_IP: 10.21.31.26 # unipod_driver default
 setup: >-
   source /opt/ros/${ROS_DISTRO}/setup.bash && source ${WS}/install/setup.bash &&
   BRINGUP_CONFIG=$(ros2 pkg prefix hotdog)/share/hotdog/config &&
@@ -46,8 +49,25 @@ windows:
   - window_name: health
     panes:
       - shell_command: ros2 launch dharma_health health.launch.py $BRINGUP_ARGS
+  - window_name: inspection
+    layout: even-vertical
+    panes:
+      - shell_command: >-
+          ros2 launch unipod_driver unipod_driver.launch.py namespace:=unipod
+          ip:=${POD_IP}
+      - shell_command: >-
+          ros2 launch hotdog_inspection inspection.launch.py $BRINGUP_ARGS
+          sites_dir:=${SITES_DIR}
+  - window_name: patrol
+    layout: even-vertical
+    panes:
+      - shell_command: >-
+          ros2 launch hotdog_patrol patrol.launch.py $BRINGUP_ARGS robot_ns:=${ROBOT_NS}
+          sites_dir:=${SITES_DIR}
+      - shell_command: ros2 launch hotdog_reports reports.launch.py $BRINGUP_ARGS
+      - shell_command: ros2 launch hotdog_alerts alerts.launch.py $BRINGUP_ARGS
   - window_name: shell
     layout: even-horizontal
     panes:
-      - shell_command: "# ros2 service call /localization/assume_origin std_srvs/srv/Trigger"
-      - shell_command: watch -n 2 ros2 node list
+      - shell_command: "# scripts/hotdog.sh status | patrol | return | estop | teach ..."
+      - shell_command: watch -n 5 scripts/hotdog.sh status

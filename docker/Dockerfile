@@ -62,12 +62,13 @@ RUN case "${ROS_DISTRO}" in \
 RUN pipx install --python "$(command -v python3.9 || command -v python3)" "pre-commit>=3.5" \
     && pipx install "ruff==0.16.9"
 
-# ROS dependencies of every package in src/ (vendor packages that are not checked out: skipped)
+# ROS dependencies of every package in src/ (vendor packages that are not checked out: skipped;
+# FAST-LIO, legKILO and Livox: HotDog runs on the M20's own odometry)
 COPY --from=manifests /src /tmp/src
 RUN apt-get update \
     && rosdep update --rosdistro "${ROS_DISTRO}" --include-eol-distros \
     && rosdep install --from-paths /tmp/src --ignore-src -r -y --rosdistro "${ROS_DISTRO}" \
-        --skip-keys "python3-loguru" \
+        --skip-keys "python3-loguru fast_lio legkilo livox_ros_driver2" \
     && rm -rf /var/lib/apt/lists/* /tmp/src
 
 # User with the host's uid (the noble images already have uid 1000: ubuntu). A gid the image

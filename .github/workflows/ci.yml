@@ -41,7 +41,7 @@ jobs:
       - name: Scripts tests
         run: if [ -d scripts/test ]; then python -m pytest -q scripts/test; fi
       - name: Compose file
-        run: docker compose --profile foxy --profile humble --profile jazzy config -q
+        run: docker compose --profile foxy config -q
 
   docs:
     runs-on: ubuntu-22.04
@@ -87,8 +87,7 @@ jobs:
     container: ros:${{ matrix.distro }}-ros-base
     env:
       BRANCH: ${{ github.head_ref || github.ref_name }}
-      ROS_LOCALHOST_ONLY: "1" # foxy, humble
-      ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST # jazzy
+      ROS_LOCALHOST_ONLY: "1"
       PYTHONUNBUFFERED: "1"
     defaults:
       run:
