@@ -1,6 +1,6 @@
-# Dev containers, one per ROS distro: scripts/dev.sh up --distro foxy|humble|jazzy
-# (or docker compose --profile jazzy up -d --build). Build artefacts live in per-distro volumes:
-# the build/ of one distro must never mix with another's.
+# The dev container: ROS 2 Foxy on Ubuntu 20.04, as on the robot. scripts/dev.sh up
+# (or docker compose --profile foxy up -d --build). Build artefacts live in named volumes, so the
+# macOS bind mount only carries the sources.
 name: hotdog
 
 x-dev: &dev
@@ -40,55 +40,7 @@ services:
       - install-foxy:/home/robot/ws/install
       - log-foxy:/home/robot/ws/log
 
-  dev-humble:
-    <<: *dev
-    profiles: [humble]
-    build:
-      <<: *build
-      args:
-        ROS_DISTRO: humble
-        USER_UID: ${USER_UID:-1000}
-        USER_GID: ${USER_GID:-1000}
-    image: hotdog-dev:humble
-    container_name: hotdog-dev-humble
-    hostname: hotdog-humble
-    ports:
-      - "127.0.0.1:5901:5901" # VNC (vnc://localhost:5901)
-      - "127.0.0.1:6080:6080" # noVNC (http://localhost:6080/vnc.html)
-    volumes:
-      - .:/home/robot/ws
-      - build-humble:/home/robot/ws/build
-      - install-humble:/home/robot/ws/install
-      - log-humble:/home/robot/ws/log
-
-  dev-jazzy:
-    <<: *dev
-    profiles: [jazzy]
-    build:
-      <<: *build
-      args:
-        ROS_DISTRO: jazzy
-        USER_UID: ${USER_UID:-1000}
-        USER_GID: ${USER_GID:-1000}
-    image: hotdog-dev:jazzy
-    container_name: hotdog-dev-jazzy
-    hostname: hotdog-jazzy
-    ports:
-      - "127.0.0.1:5902:5901" # VNC (vnc://localhost:5902)
-      - "127.0.0.1:6081:6080" # noVNC (http://localhost:6081/vnc.html)
-    volumes:
-      - .:/home/robot/ws
-      - build-jazzy:/home/robot/ws/build
-      - install-jazzy:/home/robot/ws/install
-      - log-jazzy:/home/robot/ws/log
-
 volumes:
   build-foxy:
   install-foxy:
   log-foxy:
-  build-humble:
-  install-humble:
-  log-humble:
-  build-jazzy:
-  install-jazzy:
-  log-jazzy:
